@@ -156,19 +156,64 @@ the normalized resource rows without creating a snapshot of the restore itself.
 ## Neon Postgres storage
 
 `api/db.js` owns persistence and creates the schema idempotently on first use.
-The reviewable DDL is also in `db/schema.sql`.
+The reviewable DDL is also in `db/schema.sql`. Storage is **normalized real
+tables**, not a jsonb blob per resource (an earlier `app_resources(resource,
+item_key, position, value jsonb)` generic-table design was replaced — see
+"Schema history" below):
 
-- `app_resources(resource, item_key, position, value jsonb)` stores ordered
-  resources. Allowed logical resources are `players`, `matches`, `videos`,
-  `photos`, and `slots`.
-- Keys: player name for players, match/photo/slot ID for those resources, and
-  array position for videos. `position` preserves frontend ordering.
-- `app_snapshots(snapshot_date, state jsonb, created_at)` stores up to three
-  daily pre-mutation full-state snapshots.
-- Writes run in a transaction and take Postgres advisory transaction lock
-  `684276491`, then replace each resource's ordered rows atomically.
+- `players(id bigserial PK, name, pin, photo, role, deleted_at)`. `name` has a
+  **partial** unique index (`WHERE deleted_at IS NULL`) so a soft-deleted name
+  can be reused. Deleting a player (`DELETE /api/players/:name`) sets
+  `deleted_at` rather than removing the row — matches always join to a
+  player's real `id`, so a deleted player's name still resolves correctly in
+  historical matches, exactly like the old behavior, but via a real foreign
+  key instead of a name string baked into every match.
+- `matches(id uuid PK, team1_player1_id, team1_player2_id, team2_player1_id,
+  team2_player2_id → players.id, score1, score2, match_date, comment,
+  logged_at, seq)`. Four fixed FK columns (not a join table) match the actual
+  invariant `MatchForm.jsx` enforces: always exactly 2 vs 2, all 4 unique.
+  Because matches reference players by `id`, **renaming a player is a single
+  `UPDATE players SET name = ...` — there is no cascade into match history
+  anymore** (the old `app_resources` design stored player names as plain
+  strings on each match, so a rename required rewriting every match's
+  `team1`/`team2` array to avoid an orphaned "ghost player"; see
+  `PUT /api/players/:name` below).
+- `videos(id bigserial PK, url)`, `photos(id uuid PK, data_url, seq)`,
+  `slots(id uuid PK, name, time, end_date, seq)`.
+- `id`/`seq` columns are `bigserial`, giving stable insertion order for free —
+  no `position` bookkeeping to maintain on every write.
+- `app_snapshots(snapshot_date, state jsonb, created_at)` is unchanged: still
+  stores up to three daily pre-mutation full-state snapshots as a jsonb blob,
+  which is the right shape for "the whole app at time T", restored wholesale.
+- **Targeted writes**: `api/db.js` exposes one function per mutation
+  (`addPlayer`, `updatePlayerByName`, `deletePlayerByName`, `addMatch`,
+  `updateMatch`, `deleteMatch`, `addVideo`, `deleteVideoAt`, `addPhoto`,
+  `deletePhotoById`, `addSlot`, `updateSlotById`, `deleteSlotById`) — each
+  touches only the relevant row(s), unlike the old design where every single
+  edit deleted and re-inserted all rows of all five resources.
+- `writeState(state)` still exists as a **bulk full-replace** (advisory lock
+  `684276491`, `TRUNCATE` + re-insert all 5 tables in one transaction) — used
+  only by genuinely whole-state operations: `POST /api/import`,
+  `POST /api/restore/:ts`, and `scripts/migrate-json.js`/
+  `scripts/backfill-normalized.js`. `readState()` reads all 5 tables (joining
+  `matches` to `players` 4× to resolve names) and reconstructs the same JSON
+  shape the frontend has always received.
 - On a truly empty database, the API seeds `DEFAULT_PLAYERS`, empty matches,
-  videos/photos, and `DEFAULT_SLOTS`.
+  videos/photos, and `DEFAULT_SLOTS` through the targeted insert functions.
+
+### Schema history
+
+The original Neon migration (`c1b3f0c`) used a single generic
+`app_resources(resource, item_key, position, value jsonb)` table for all five
+resources, functionally mirroring the old flat-JSON-file model. It was later
+replaced with the normalized tables above to fix three issues: every write
+rewriting all rows of all resources, no referential integrity (player renames
+needed a manual cascade into every match), and no indexed/SQL-level
+filtering. `scripts/backfill-normalized.js` is the one-time script that
+migrates existing `app_resources` data into the new tables — it should be run
+against a Neon database branch first to verify, then against production, and
+the old `app_resources` table should be left in place afterward as a rollback
+safety net rather than dropped immediately.
 
 Current migrated live dataset (from `badminton-resultslatest.json`, verified
 after import): **19 players, 132 matches, 4 videos, 8 photo records, 12 slots**.

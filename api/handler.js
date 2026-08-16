@@ -8,10 +8,23 @@
 import { put, del } from '@vercel/blob'
 import crypto from 'node:crypto'
 import {
+  addMatch,
+  addPhoto,
+  addPlayer,
+  addSlot,
+  addVideo,
+  deleteMatch,
+  deletePhotoById,
+  deletePlayerByName,
+  deleteSlotById,
+  deleteVideoAt,
   getSnapshot,
   listSnapshots,
   readState as readDatabaseState,
   snapshotState,
+  updateMatch,
+  updatePlayerByName,
+  updateSlotById,
   writeState,
 } from './db.js'
 
@@ -135,16 +148,13 @@ export default async function handler(req, res) {
         const { name, pin, photo } = req.body || {}
         if (name && !state.players.find((p) => p.name === name)) {
           await snapshotState(state)
-          state.players.push({ name, ...(pin && { pin }), ...(photo && { photo }) })
-          await writeState(state)
+          return res.status(200).json(await addPlayer({ name, pin, photo }))
         }
         return res.status(200).json(state.players)
       }
       if (req.method === 'DELETE') {
         await snapshotState(state)
-        state.players = state.players.filter((p) => p.name !== param)
-        await writeState(state)
-        return res.status(200).json(state.players)
+        return res.status(200).json(await deletePlayerByName(param))
       }
       if (req.method === 'PUT') {
         const { name: newName, pin, photo, role } = req.body || {}
@@ -163,17 +173,9 @@ export default async function handler(req, res) {
         // single fixed super admin (Suresh Padaga, see SUPER_ADMIN_NAME in admins.js).
         if (role !== undefined) { if (role) updated.role = role }
         else if (existing.role) updated.role = existing.role
-        state.players[idx] = updated
-        // Cascade the rename into every match's team1/team2 so historical
-        // stats stay attributed to this player instead of splitting into an
-        // orphaned "old name" ghost entry (computeStats/computePairStats key
-        // purely off the name strings stored on each match).
-        if (finalName !== param) {
-          const rn = (arr) => arr.map((n) => (n === param ? finalName : n))
-          state.matches = state.matches.map((m) => ({ ...m, team1: rn(m.team1), team2: rn(m.team2) }))
-        }
-        await writeState(state)
-        return res.status(200).json(state.players)
+        // Matches reference players by id, not name, so a rename is a single-row
+        // update here — no cascade into match history needed anymore.
+        return res.status(200).json(await updatePlayerByName(param, updated))
       }
     }
 
@@ -181,22 +183,16 @@ export default async function handler(req, res) {
       if (req.method === 'POST') {
         const match = req.body || {}
         await snapshotState(state)
-        state.matches.push({ ...match, id: crypto.randomUUID(), loggedAt: new Date().toISOString() })
-        await writeState(state)
-        return res.status(200).json(state.matches)
+        return res.status(200).json(
+          await addMatch({ ...match, id: crypto.randomUUID(), loggedAt: new Date().toISOString() })
+        )
       }
       if (req.method === 'PUT') {
-        state.matches = state.matches.map((m) =>
-          m.id === param ? { ...m, ...(req.body || {}), id: m.id } : m
-        )
-        await writeState(state)
-        return res.status(200).json(state.matches)
+        return res.status(200).json(await updateMatch(param, req.body || {}))
       }
       if (req.method === 'DELETE') {
         await snapshotState(state)
-        state.matches = state.matches.filter((m) => m.id !== param)
-        await writeState(state)
-        return res.status(200).json(state.matches)
+        return res.status(200).json(await deleteMatch(param))
       }
     }
 
@@ -205,15 +201,11 @@ export default async function handler(req, res) {
         const { url } = req.body || {}
         if (state.videos.length >= MAX_VIDEOS) return res.status(400).json({ error: `Max ${MAX_VIDEOS} videos reached` })
         await snapshotState(state)
-        state.videos.push(url)
-        await writeState(state)
-        return res.status(200).json(state.videos)
+        return res.status(200).json(await addVideo(url))
       }
       if (req.method === 'DELETE') {
         await snapshotState(state)
-        state.videos.splice(Number(param), 1)
-        await writeState(state)
-        return res.status(200).json(state.videos)
+        return res.status(200).json(await deleteVideoAt(Number(param)))
       }
     }
 
@@ -221,21 +213,14 @@ export default async function handler(req, res) {
       if (req.method === 'POST') {
         const slot = req.body || {}
         await snapshotState(state)
-        state.slots.push({ ...slot, id: crypto.randomUUID() })
-        await writeState(state)
-        return res.status(200).json(state.slots)
+        return res.status(200).json(await addSlot({ ...slot, id: crypto.randomUUID() }))
       }
       if (req.method === 'PUT') {
-        const updates = req.body || {}
-        state.slots = state.slots.map((s) => (s.id === param ? { ...s, ...updates, id: s.id } : s))
-        await writeState(state)
-        return res.status(200).json(state.slots)
+        return res.status(200).json(await updateSlotById(param, req.body || {}))
       }
       if (req.method === 'DELETE') {
         await snapshotState(state)
-        state.slots = state.slots.filter((s) => s.id !== param)
-        await writeState(state)
-        return res.status(200).json(state.slots)
+        return res.status(200).json(await deleteSlotById(param))
       }
     }
 
@@ -244,17 +229,13 @@ export default async function handler(req, res) {
         const { dataUrl } = req.body || {}
         if (state.photos.length >= MAX_PHOTOS) return res.status(400).json({ error: `Max ${MAX_PHOTOS} photos reached` })
         await snapshotState(state)
-        state.photos.push(await savePhotoBlob(dataUrl))
-        await writeState(state)
-        return res.status(200).json(state.photos)
+        return res.status(200).json(await addPhoto(await savePhotoBlob(dataUrl)))
       }
       if (req.method === 'DELETE') {
         const entry = state.photos.find((p) => p.id === param)
         if (entry) await del(entry.dataUrl).catch(() => {})
         await snapshotState(state)
-        state.photos = state.photos.filter((p) => p.id !== param)
-        await writeState(state)
-        return res.status(200).json(state.photos)
+        return res.status(200).json(await deletePhotoById(param))
       }
     }
 
