@@ -1,13 +1,29 @@
 # GNR SmashStats — Badminton Results Tracker
 
-React + Vite + Tailwind v4 frontend. Two interchangeable backends behind the
-same `/api/*` contract — `src/lib/api.js` works against either without changes:
+React + Vite + Tailwind v4 frontend with one Neon Postgres-backed API contract.
 
-- **Local dev/preview**: `server/apiPlugin.js` — Vite middleware, reads/writes
-  plain JSON files in `data/` and images in `public/photos/`.
-- **Vercel (production)**: `api/handler.js` — serverless function reached via
-  `vercel.json` rewrite (`/api/:path* → /api/handler`). All state lives in one
-  Vercel Blob (`state/data.json`) so every read/write is a single round-trip.
+- **Production**: `api/handler.js` is a Vercel Function reached through the
+  `vercel.json` rewrite (`/api/:path* → /api/handler`). Players, matches, videos,
+  photo metadata, court slots, and recovery snapshots are persisted in Neon.
+- **Photo binaries only** remain in Vercel Blob. Postgres stores each photo's
+  `{ id, dataUrl }` metadata; `dataUrl` is the public Blob URL after upload.
+- **Local development** intentionally proxies `/api/*` to
+  `https://gnrsmashstats-kohl.vercel.app` through `vite.config.js`. It therefore
+  reads and writes the same real Neon data as the new production project. The old
+  `server/apiPlugin.js` and `data/*.json` implementation remains in the repository
+  only as legacy/reference code and is no longer registered by Vite.
+
+## Repository and isolation
+
+- Repository: `https://github.com/spadaga/gnrsmashstats` (plural).
+- Active deployment branch: `migration/neon-postgres`.
+- Vercel project/deployment: `gnrsmashstats` / `https://gnrsmashstats-kohl.vercel.app`.
+- This is separate from the original `spadaga/gnrsmashstat` repository, its
+  branches, Vercel project, Blob-backed production deployment, and live site.
+  Do not point this checkout at, push to, or deploy over the original project.
+- Migration implementation commits: `c1b3f0c` (Neon backend), `ac793ec`
+  (portable dependencies), `c1cdc13` (safe DB configuration errors), `f4ff0f4`
+  (Node/native bindings), and `dfddba5` (real-data local proxy and Blob URL import).
 
 ## Run locally
 
@@ -18,9 +34,25 @@ npm run build && npm run preview
 npm run lint     # oxlint
 ```
 
+Use Node `22.22.2` (`.nvmrc`; package requires `>=22.12.0`):
+
+```powershell
+nvm use 22.22.2
+npm ci --include=optional
+npm run dev
+```
+
+Windows bindings for Rolldown and Oxlint are root `optionalDependencies`. They
+install on Windows and are skipped safely by Vercel's Linux builder. Do not move
+them into regular `dependencies` or `devDependencies`; doing so causes Vercel
+`EBADPLATFORM` failures.
+
+Local `/api` calls affect the real new production database. Override the target
+with `LOCAL_API_TARGET` only when deliberately using another deployment.
+
 ## Players schema (`{ name, pin? }` objects)
 
-`data/players.json` is an array of objects:
+The `players` resource stored in Postgres is an ordered array of objects:
 
 ```json
 [
@@ -49,21 +81,20 @@ npm run lint     # oxlint
   or `{ role: '' }`). Suresh Padaga's own row always shows Admin and has no toggle — his badge is derived
   from his name, not this field.
 - Optional `photo` field: a small downscaled JPEG data URL (`data:image/jpeg;base64,...`), set via
-  `Players.jsx`'s avatar picker (super-admin only). Stored inline on the player object in both backends —
+  `Players.jsx`'s avatar picker (super-admin only). Stored inline in the player's Postgres JSON value —
   no separate blob/file, unlike match photos — since avatars are capped to 300px/~150KB so the whole
-  players array stays small. `PUT /api/players/:name` accepts `photo` the same way it accepts `pin`:
+  player JSON value stays small. `PUT /api/players/:name` accepts `photo` the same way it accepts `pin`:
   omit to keep the existing photo, pass a data URL to set it, pass `""` to clear it back to the
   initials-circle fallback. `POST /api/players` also accepts an initial `photo`.
 - **Renaming a player cascades into match history**: `PUT /api/players/:name` with a new `name` doesn't
-  just rename the player entry — both backends also rewrite every match's `team1`/`team2` array, replacing
+  just rename the player entry — the API also rewrites every match's `team1`/`team2` array, replacing
   the old name with the new one. Without this, `computeStats`/`computePairStats` (which key purely off the
   name strings stored on each match, not player IDs) would keep the old name alive as an orphaned "ghost"
   player with its own separate stats, split off from the renamed player's history. `Nayeem Abdhullah` →
   `Abdhulla` and `Pradeep Raghav` → `HR` were renamed this way (matching the short names those two already
-  went by in `Court Slots`); `DEFAULT_PLAYERS` in both backends was updated to seed the new names too, but
-  that only affects a *fresh* deploy/first load — an already-seeded Vercel Blob still has the old names
-  baked in and needs the same rename done once via the live Players page (logged in as the super admin) to
-  pick up this cascade fix.
+  went by in `Court Slots`). `DEFAULT_PLAYERS` in `api/handler.js` is used only
+  when an empty database is initialized; the live Neon database contains the
+  imported production player list.
 
 ## Admin auth (PIN-first login)
 
@@ -103,9 +134,9 @@ npm run lint     # oxlint
 
 ## Version history
 
-Every write auto-saves a snapshot (last **3** kept, **one per calendar day**):
-- **Local**: `data/history/<YYYY-MM-DD>.json`
-- **Vercel**: Blob `state/history/<YYYY-MM-DD>.json`
+Snapshot-enabled mutations save history (last **3** kept, **one per calendar day**):
+- **Local and production**: Neon table `app_snapshots`, keyed by
+  `snapshot_date`. Local uses the production API, so there is only one history.
 
 The snapshot captures the **pre-mutation state** on the **first write of each day** only.
 Subsequent writes that day skip snapshotting (start-of-day state is preserved for recovery).
@@ -118,18 +149,43 @@ fetch('/api/versions').then(r => r.json()).then(console.log)
 To restore: `POST /api/restore/:date` (date is `YYYY-MM-DD`)
 The `VersionsModal` is wired into Header (desktop: History button; mobile: hamburger menu). Labels: Today / Yesterday / Day Before Yesterday.
 
-**Delete bug fix**: Vercel handler now snapshots the pre-mutation state before each write, so deleting a match correctly preserves the pre-delete state in history.
+The API snapshots the pre-mutation state before destructive writes, so deleting
+a match preserves the start-of-day state. Restoring writes the snapshot back to
+the normalized resource rows without creating a snapshot of the restore itself.
 
-## Local dev storage
+## Neon Postgres storage
 
-- `data/players.json` — `[{ name, pin? }]`
-- `data/matches.json` — `[{ id, date, team1:[a,b], team2:[c,d], score1, score2, comment? }]`.
-  Scores 0–30, no ties. `comment` optional.
-- `data/videos.json` — up to 20 YouTube URL strings.
-- `data/photos.json` — index `[{ id, filename }]`.
-- `public/photos/<uuid>.<ext>` — actual files, served via Vite static.
-- `data/slots.json` — `[{ id, name, time, endDate }]`. `endDate` = `YYYY-MM-DD`.
-- `data/history/` — last 5 snapshots.
+`api/db.js` owns persistence and creates the schema idempotently on first use.
+The reviewable DDL is also in `db/schema.sql`.
+
+- `app_resources(resource, item_key, position, value jsonb)` stores ordered
+  resources. Allowed logical resources are `players`, `matches`, `videos`,
+  `photos`, and `slots`.
+- Keys: player name for players, match/photo/slot ID for those resources, and
+  array position for videos. `position` preserves frontend ordering.
+- `app_snapshots(snapshot_date, state jsonb, created_at)` stores up to three
+  daily pre-mutation full-state snapshots.
+- Writes run in a transaction and take Postgres advisory transaction lock
+  `684276491`, then replace each resource's ordered rows atomically.
+- On a truly empty database, the API seeds `DEFAULT_PLAYERS`, empty matches,
+  videos/photos, and `DEFAULT_SLOTS`.
+
+Current migrated live dataset (from `badminton-resultslatest.json`, verified
+after import): **19 players, 132 matches, 4 videos, 8 photo records, 12 slots**.
+The local proxy and live API were both verified against these counts.
+
+### Environment variables
+
+- `DATABASE_URL` — preferred Neon pooled connection string.
+- Accepted fallbacks: `POSTGRES_URL`, `DATABASE_URL_UNPOOLED`, and
+  `POSTGRES_URL_NON_POOLING`.
+- `BLOB_READ_WRITE_TOKEN` — required for new photo upload/delete operations;
+  injected by connecting a separate Vercel Blob store to this new project.
+- `LOCAL_API_TARGET` — optional Vite proxy override; defaults to the new live URL.
+
+If no database URL exists, the module still loads and the API returns HTTP 503
+JSON with code `DATABASE_NOT_CONFIGURED`; it must not throw during module import
+or Vercel will report `FUNCTION_INVOCATION_FAILED`.
 
 ## API routes
 
@@ -151,14 +207,25 @@ The `VersionsModal` is wired into Header (desktop: History button; mobile: hambu
 | DELETE | `/api/slots/:id` | Delete slot |
 | GET | `/api/export` | Download full JSON snapshot |
 | POST | `/api/import` | Restore full snapshot |
-| GET | `/api/versions` | List last 5 snapshots |
+| GET | `/api/versions` | List last 3 daily snapshots |
 | POST | `/api/restore/:ts` | Restore a snapshot |
 
-## Vercel setup (one-time)
+## Vercel and migration setup
 
-1. Vercel dashboard → project → **Storage** → **Blob** → connect → redeploy.
-2. First load seeds `DEFAULT_PLAYERS` + `DEFAULT_SLOTS`.
-3. Auto-migrates legacy formats (4 separate blobs → single blob, string players → objects, missing slots field).
+1. Import only `spadaga/gnrsmashstats`, branch `migration/neon-postgres`, into a
+   new Vercel project.
+2. Connect a new Neon resource to Production and Preview. The integration
+   injects `DATABASE_URL` and related Postgres variables; redeploy after connecting.
+3. Connect a separate Vercel Blob store to this new project for photo binaries.
+4. The first `/api/state` request creates the Postgres schema and seeds defaults
+   only if there are no resource rows.
+5. Import a full snapshot through `POST /api/import` or, with a database URL,
+   `npm run db:migrate -- <full-export.json>`.
+
+The full importer accepts both inline `data:image/...` photos (uploads them to
+the connected Blob store) and existing public `https://...` Blob URLs (preserves
+the URL and writes only metadata to Neon). It deliberately does not delete old
+Blob objects during a full import, preventing damage to the original store.
 
 ## Ranking
 
@@ -255,7 +322,7 @@ PIN-first: type 4 digits → `findAdminByPin()` → name + ✅ → auto-login 70
 Modal confirmation (Trash / AlertTriangle icon). Replaces all `window.confirm`.
 
 ### `src/components/VersionsModal.jsx`
-Admin-only modal. Lists last 5 snapshots with timestamp, match/player count,
+Admin-only modal. Lists the last 3 daily snapshots with date, match/player count,
 Latest badge, Restore button. Restore triggers ConfirmDialog then `POST /api/restore/:ts`.
 
 ### `src/components/SlotsTicker.jsx`
@@ -485,8 +552,13 @@ All mutations return updated resource array. `updateMatch(id, updates)` → `PUT
 
 - Admin auth is client-side only — PIN check happens in the browser.
   Do not store sensitive data.
-- Vercel Blob is `public` — blob URLs are accessible to anyone.
-- Local and Vercel data are independent — use Export/Import to sync.
+- Vercel Blob photo URLs are public and accessible to anyone with the URL.
+- Local and production data are intentionally the same: Vite proxies local
+  `/api/*` calls to the new live deployment. Local mutations are production writes.
+- Existing imported photos still reference the original public Blob URLs. New
+  uploads require the new project's `BLOB_READ_WRITE_TOKEN`. Do not retire the
+  original Blob store until all eight binaries are copied to the new store and
+  their Neon metadata URLs are updated and visually verified.
 - Scores: 0–30, no deuce logic.
 - `isSuperAdmin` (Suresh Padaga) computed once in `App.jsx`: `adminName === SUPER_ADMIN_NAME`. Keyed on
   name, not PIN — see Admin auth above for why. As of the write-access lockdown, this is effectively the
@@ -504,7 +576,8 @@ All mutations return updated resource array. `updateMatch(id, updates)` → `PUT
   falling back to original array position (later = more recent) for legacy matches without `loggedAt`.
 - `computePairStats(matches)` in ranking.js computes wins/losses per 2-player pair combination.
 - `TopSeeds` shows top 2 pairs (not individuals), with "View All →" modal for all combinations.
-- `PUT /api/players/:name` endpoint added for editing player name/pin/photo/role (both backends).
+- `PUT /api/players/:name` edits player name/pin/photo/role in Neon and cascades
+  name changes into all stored matches.
 - **"Abandoned" is a heuristic, not a stored flag**: any match where the winning score is under 21 is
   treated as abandoned (`isAbandoned` in ranking.js). There's no separate "was this actually cut short"
   field — a genuinely low-scoring-but-complete alternate scoring format would also get flagged, but the
@@ -515,7 +588,29 @@ All mutations return updated resource array. `updateMatch(id, updates)` → `PUT
 
 ## Deploy
 
-Push to `main` — Vercel auto-deploys. Complete Blob store setup first.
+Push to `migration/neon-postgres` in `spadaga/gnrsmashstats`; the separate
+`gnrsmashstats` Vercel project auto-deploys that branch. Never push these changes
+to the original singular repository or connect this Vercel project to it.
+
+Deployment prerequisites/checks:
+
+1. Node `>=22.12.0` (project `.nvmrc` is `22.22.2`).
+2. Neon integration variables available to the target environment.
+3. Separate Blob store connected before testing photo creation/deletion.
+4. `npm run lint` (four currently known pre-existing `no-unused-expressions`
+   warnings) and `npm run build` pass.
+5. `/api/state` returns HTTP 200 and the expected live counts.
+6. Verify local `/api/state` through `npm run dev` matches the live API.
+
+### Migration record
+
+- Source snapshot: `S:\MYdocs&downloads\Downloads\badminton-resultslatest.json`.
+- Import was first verified for 132 matches, then the full snapshot was imported.
+- Final live and local verification: 19 players, 132 matches, 4 videos,
+  8 photos, 12 slots.
+- The original repository remained on `main` with its pre-existing uncommitted
+  `package-lock.json`, `data/players - Copy.json`, and `data/slots - Copy.json`
+  changes untouched throughout the migration.
 
 ---
 *CLAUDE.md is updated with every code change to stay in sync.*
