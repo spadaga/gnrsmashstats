@@ -351,11 +351,15 @@ Blob objects during a full import, preventing damage to the original store.
 - `src/lib/admins.js`'s `photoMap(players)` builds a `{ [name]: photo }` lookup, computed once in `App.jsx`
   and passed only to `LogMatch` → `MatchForm` → `PlayerPicker` (`Players.jsx` gets full player objects
   directly, so it doesn't need this lookup — it reads `p.photo` straight off each player).
-- `src/components/PlayerPicker.jsx` — an avatar-aware replacement for a native `<select>` of player names
-  (plain `<option>`s can't render an inline `<img>`). A button showing the selected player's `Avatar` +
-  name opens a custom listbox of the same for each option; closes on selection or on an outside click.
-  Used for `MatchForm`'s 4 team-slot pickers only — `MatchList`'s H2H filter/edit-score dropdowns and
-  `Report.jsx`'s player selects are still plain `<select>`s.
+- `src/components/PlayerPicker.jsx` — an avatar-aware, type-to-filter combobox replacement for a native
+  `<select>` of player names (plain `<option>`s can't render an inline `<img>`). Opening it swaps the
+  button for a text input; typed text only ever **filters** the option list (case-insensitive substring
+  match) — it never becomes the picked value. `onChange` fires exclusively from clicking an option or
+  pressing Enter when exactly one filtered match remains, so a query that matches nothing just shows "No
+  matching players." and leaves the previous selection (or none) in place — there's no way to add an
+  arbitrary typed name as a player. Closes on selection, Escape, or an outside click, resetting the typed
+  query each time. Used for `MatchForm`'s 4 team-slot pickers only — `MatchList`'s H2H filter/edit-score
+  dropdowns and `Report.jsx`'s player selects are still plain `<select>`s.
 - `Players.jsx`'s `PlayerAvatarPicker` doubles the avatar as the upload target (super-admin only, consistent
   with the write-access lockdown above): hovering a player's avatar reveals a camera icon overlay (click to
   pick a file) and, if a photo is set, a small red × to clear it back to the initials circle. Guests/regular
