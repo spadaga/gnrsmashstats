@@ -632,13 +632,19 @@ everything from the same `data` App.jsx already has in memory.
   win%** for that period alone (`filterByPeriod` + a local `recordFor()` tally, which now also returns
   `winRate`). Each card is clickable too — opens `MatchesModal` with that player's matches in that
   specific period (`matchesForPlayer` + `filterByPeriod`).
-- **Your Ranking** (new card, between Activity Breakdown and Recent Matches): this player's rank + win%
-  for a selected period — Day / Week / Month / Overall / Date Range, via the shared `PeriodTabs` component
+- **Your Ranking** (card, between Activity Breakdown and Player Combos): this player's rank + win% for a
+  selected period — Day / Week / Month / Overall / Date Range, via the shared `PeriodTabs` component
   imported from `Report.jsx` (passed its own `periods` list, since this page wants "Overall" where
   Report's own tabs use "Year") and `applyPeriod` from `ranking.js`. Computes
   `computeStats(periodMatches, players, minMatches)` for **everyone** (`minMatches = period==='today'?1:3`,
   same rule as `Leaderboard`/`TopSeeds`), runs it through the shared `computeRanks`, then picks out this
   player's own row — same rank badge / NA-if-unqualified convention as `Leaderboard`.
+- **Player Combos** (`PlayerCombosCard`, between Your Ranking and Recent Matches): this player's partner
+  combinations, reusing `Report.jsx`'s `CombosSection` logic/layout but fixed to this page's `playerName`
+  (no player picker) — `computePairStats(matches)` filtered to pairs containing this player, the same
+  "Combinations played / Total matches / Overall record" tile row, a `Bar` chart per partner (`Bar`
+  exported from `Report.jsx`, same component used there), and a clickable list of partner records
+  (played/W/L/win%) that drills into `MatchesModal` via `matchesForPair`.
 - **Recent Matches**: up to the last 15 matches (newest-first), each tagged Won/Lost for this player, with
   the same abandoned-match highlight/badge and comment display used elsewhere. The header's abandoned-count
   badge is **clickable** (not just a static count) — opens `MatchesModal` with just this player's abandoned

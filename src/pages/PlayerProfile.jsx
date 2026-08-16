@@ -3,8 +3,8 @@ import { AlertTriangle, ArrowLeft, CalendarClock, CreditCard, ShieldCheck, Troph
 import Avatar from '../components/Avatar'
 import MatchesModal from '../components/MatchesModal'
 import { SUPER_ADMIN_NAME } from '../lib/admins'
-import { computeStats, computeRanks, filterByPeriod, applyPeriod, isAbandoned, matchesForPlayer } from '../lib/ranking'
-import { PeriodTabs } from './Report'
+import { computeStats, computeRanks, computePairStats, filterByPeriod, applyPeriod, isAbandoned, matchesForPlayer, matchesForPair } from '../lib/ranking'
+import { Bar, PeriodTabs } from './Report'
 
 const RANK_PERIODS = [
   { key: 'today', label: 'Day' },
@@ -91,6 +91,46 @@ function MatchRow({ m, name }) {
         </p>
       )}
       {m.comment && <p className="text-slate-600 dark:text-slate-300 italic font-medium mt-1">"{m.comment}"</p>}
+    </div>
+  )
+}
+
+function PlayerCombosCard({ matches, playerName, onDrilldown }) {
+  const pairs = computePairStats(matches).filter((x) => x.players.includes(playerName))
+  const partnerOf = (pair) => pair.players.find((n) => n !== playerName)
+  const overall = pairs.reduce((acc, x) => ({ played: acc.played + x.played, wins: acc.wins + x.wins, losses: acc.losses + x.losses }), { played: 0, wins: 0, losses: 0 })
+  const max = Math.max(1, ...pairs.map((x) => x.played))
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-5">
+      <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300 mb-3">Player Combos</h2>
+      {pairs.length === 0 ? <p className="text-slate-400 text-sm">No partner combinations yet.</p> : (
+        <>
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            <StatTile value={pairs.length} label="Combinations played" color="text-slate-800 dark:text-slate-100" />
+            <StatTile value={overall.played} label="Total matches"
+              onClick={() => onDrilldown({ title: `${playerName} — all matches`, list: matchesForPlayer(matches, playerName) })} />
+            <StatTile value={`${overall.wins}W – ${overall.losses}L`} label="Overall record"
+              onClick={() => onDrilldown({ title: `${playerName} — all matches`, list: matchesForPlayer(matches, playerName) })} />
+          </div>
+          <div className="space-y-2 mb-5">
+            {pairs.map((x) => <Bar key={x.players.join('|')} label={`w/ ${partnerOf(x)}`} value={x.played} max={max} />)}
+          </div>
+          <div className="space-y-1.5">
+            {pairs.map((x) => {
+              const partner = partnerOf(x)
+              return (
+                <button key={x.players.join('|')} type="button"
+                  onClick={() => onDrilldown({ title: `${playerName} & ${partner} together`, list: matchesForPair(matches, [playerName, partner]) })}
+                  className="w-full flex items-center justify-between text-xs px-3 py-2 rounded-lg border dark:border-slate-700 hover:border-orange-200 dark:hover:border-orange-800 transition">
+                  <span className="font-semibold text-slate-700 dark:text-slate-200">w/ {partner}</span>
+                  <span className="text-slate-500 dark:text-slate-400">{x.played} played · <span className="text-orange-600 font-bold">{x.wins}W</span> – {x.losses}L · {x.winRate}%</span>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -212,6 +252,8 @@ export default function PlayerProfile({ playerName, players, matches, slots, due
           </div>
         )}
       </div>
+
+      <PlayerCombosCard matches={matches} playerName={playerName} onDrilldown={setDrilldown} />
 
       <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-5">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">

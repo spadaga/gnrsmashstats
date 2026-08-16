@@ -23,7 +23,7 @@ const PERIODS = [
 const selectCls = 'border dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:border-orange-400 focus:outline-none'
 const dateCls = 'border dark:border-slate-600 rounded-lg px-2 py-1 text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100'
 
-function Bar({ label, value, max, color = 'bg-orange-600' }) {
+export function Bar({ label, value, max, color = 'bg-orange-600' }) {
   const pct = max > 0 && value > 0 ? Math.max(4, (value / max) * 100) : 0
   return (
     <div className="flex items-center gap-2">
