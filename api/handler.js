@@ -1,21 +1,22 @@
-// Vercel serverless backend, backed by Vercel Blob storage instead of local
-// files (Vercel's static hosting has no writable/persistent disk). Mirrors
+// Vercel serverless backend. Structured application data and snapshots live
+// in Neon Postgres; Vercel Blob is used only for uploaded photo binaries. Mirrors
 // the route contract of server/apiPlugin.js (the local dev/preview backend)
 // so src/lib/api.js works unchanged against either one.
 //
-// Requires a Blob store connected to this project (Vercel dashboard ->
-// Storage -> Create Blob store -> Connect to Project). That injects
-// BLOB_READ_WRITE_TOKEN automatically; redeploy after connecting it.
-//
-// All app state (players/matches/videos/photos index) lives in ONE blob
-// (state/data.json) so a page load or CRUD op is a single head+fetch and a
-// single put, instead of one round trip per resource.
-import { put, del, head, list } from '@vercel/blob'
+// Requires DATABASE_URL (Neon pooled connection string) and a Blob store
+// connected to this project (BLOB_READ_WRITE_TOKEN).
+import { put, del } from '@vercel/blob'
 import crypto from 'node:crypto'
+import {
+  getSnapshot,
+  listSnapshots,
+  readState as readDatabaseState,
+  snapshotState,
+  writeState,
+} from './db.js'
 
 const MAX_PHOTOS = 50
 const MAX_VIDEOS = 20
-const STATE_PATH = 'state/data.json'
 
 // Players are stored as { name, pin? } objects.
 // Those with a pin are admins; others are read-only.
@@ -44,84 +45,11 @@ const DEFAULT_SLOTS = [
   { name: 'Vamsi', time: '6 to 7', endDate: '2026-09-05' },
 ].map((s) => ({ ...s, id: crypto.randomUUID() }))
 
-async function fetchBlobJSON(pathname, fallback) {
-  try {
-    const meta = await head(pathname)
-    const res = await fetch(meta.url, { cache: 'no-store' })
-    return await res.json()
-  } catch {
-    return fallback
-  }
-}
-
-// One-time upgrade path from the earlier per-resource-blob version, so
-// existing live data isn't lost when this file switched to a single blob.
-async function migrateLegacyState() {
-  const [players, matches, videos, photos] = await Promise.all([
-    fetchBlobJSON('state/players.json', null),
-    fetchBlobJSON('state/matches.json', []),
-    fetchBlobJSON('state/videos.json', []),
-    fetchBlobJSON('state/photos.json', []),
-  ])
-  return { players: players || DEFAULT_PLAYERS, matches, videos, photos, slots: DEFAULT_SLOTS }
-}
-
 async function readState() {
-  try {
-    const meta = await head(STATE_PATH)
-    const res = await fetch(meta.url, { cache: 'no-store' })
-    const state = await res.json()
-    let dirty = false
-    // Backfill slots field added after initial deploy
-    if (!state.slots) { state.slots = DEFAULT_SLOTS; dirty = true }
-    // Migrate old string-array players to object array
-    if (state.players?.length > 0 && typeof state.players[0] === 'string') {
-      state.players = state.players.map((name) => {
-        const def = DEFAULT_PLAYERS.find((d) => d.name === name)
-        return def || { name }
-      })
-      dirty = true
-    }
-    if (dirty) await writeState(state)
-    return state
-  } catch {
-    const migrated = await migrateLegacyState()
-    await writeState(migrated)
-    return migrated
-  }
+  return readDatabaseState({ players: DEFAULT_PLAYERS, matches: [], videos: [], photos: [], slots: DEFAULT_SLOTS })
 }
 
 const MAX_VERSIONS = 3
-const HISTORY_PREFIX = 'state/history/'
-
-// Snapshot the pre-mutation state once per calendar day. Skips if today's snapshot already exists.
-async function snapshotState(state) {
-  const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-  const histPath = `${HISTORY_PREFIX}${today}.json`
-  try {
-    await head(histPath)
-    // Today's snapshot exists — skip to preserve start-of-day state
-  } catch {
-    await put(histPath, JSON.stringify(state), {
-      access: 'public', contentType: 'application/json', addRandomSuffix: false,
-    })
-    // Prune to MAX_VERSIONS daily snapshots
-    const { blobs } = await list({ prefix: HISTORY_PREFIX })
-    const sorted = blobs.sort((a, b) => a.pathname.localeCompare(b.pathname))
-    const toDelete = sorted.slice(0, Math.max(0, sorted.length - MAX_VERSIONS))
-    await Promise.all(toDelete.map((b) => del(b.url).catch(() => {})))
-  }
-}
-
-// Write state without snapshotting (snapshot must be called separately before mutation)
-async function writeState(state) {
-  await put(STATE_PATH, JSON.stringify(state), {
-    access: 'public',
-    contentType: 'application/json',
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  })
-}
 
 function parseDataUrl(dataUrl) {
   const match = /^data:image\/(\w+);base64,(.+)$/.exec(dataUrl)
@@ -150,44 +78,20 @@ export default async function handler(req, res) {
     const state = await readState()
 
     if (resource === 'versions' && req.method === 'GET') {
-      const { blobs } = await list({ prefix: HISTORY_PREFIX })
-      const sorted = blobs
-        .sort((a, b) => a.pathname.localeCompare(b.pathname))
-        .slice(-MAX_VERSIONS)
-        .reverse()
-      const versions = await Promise.all(
-        sorted.map(async (b) => {
-          try {
-            const r = await fetch(b.url, { cache: 'no-store' })
-            const s = await r.json()
-            return {
-              ts: b.pathname.replace(HISTORY_PREFIX, '').replace('.json', ''),
-              matchCount: s.matches?.length ?? 0,
-              playerCount: s.players?.length ?? 0,
-              slotCount: s.slots?.length ?? 0,
-            }
-          } catch {
-            return { ts: b.pathname.replace(HISTORY_PREFIX, '').replace('.json', ''), matchCount: null, playerCount: null }
-          }
-        })
-      )
+      const versions = (await listSnapshots()).slice(0, MAX_VERSIONS).map(({ ts, state: s }) => ({
+        ts,
+        matchCount: s.matches?.length ?? 0,
+        playerCount: s.players?.length ?? 0,
+        slotCount: s.slots?.length ?? 0,
+      }))
       return res.status(200).json(versions)
     }
 
     if (resource === 'restore' && req.method === 'POST') {
       const ts = param
-      const { blobs } = await list({ prefix: HISTORY_PREFIX })
-      const blob = blobs.find((b) => b.pathname === `${HISTORY_PREFIX}${ts}.json`)
-      if (!blob) return res.status(404).json({ error: 'Version not found' })
-      const r = await fetch(blob.url, { cache: 'no-store' })
-      const restored = await r.json()
-      // Write directly (skip snapshotting to avoid overwriting history with itself)
-      await put(STATE_PATH, JSON.stringify(restored), {
-        access: 'public',
-        contentType: 'application/json',
-        addRandomSuffix: false,
-        allowOverwrite: true,
-      })
+      const restored = await getSnapshot(ts)
+      if (!restored) return res.status(404).json({ error: 'Version not found' })
+      await writeState(restored)
       return res.status(200).json(restored)
     }
 
