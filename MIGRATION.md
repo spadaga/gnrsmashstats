@@ -32,3 +32,7 @@ The JSON export contains photo URLs, not the photo binary files. The migration p
 - Photo upload and delete use the new Blob store.
 - Export/import and daily restore work.
 - Existing production URL and existing Vercel project remain unchanged.
+
+## Local development
+
+`npm run dev` proxies `/api/*` to the new deployment at `https://gnrsmashstats-kohl.vercel.app`, so local development uses the real Neon database instead of `data/*.json`. Local create/update/delete actions affect that database. Set `LOCAL_API_TARGET` to override the target.

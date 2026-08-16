@@ -113,9 +113,17 @@ export default async function handler(req, res) {
       if (Array.isArray(body.videos)) next.videos = body.videos.slice(0, MAX_VIDEOS)
       if (Array.isArray(body.slots)) next.slots = body.slots
       if (Array.isArray(body.photos)) {
-        await Promise.all(state.photos.map((p) => del(p.dataUrl).catch(() => {})))
         const index = []
-        for (const p of body.photos.slice(0, MAX_PHOTOS)) index.push(await savePhotoBlob(p.dataUrl))
+        for (const p of body.photos.slice(0, MAX_PHOTOS)) {
+          if (typeof p.dataUrl === 'string' && p.dataUrl.startsWith('data:image/')) {
+            index.push(await savePhotoBlob(p.dataUrl))
+          } else if (typeof p.dataUrl === 'string' && /^https:\/\//.test(p.dataUrl)) {
+            // Full exports from the old Blob-backed app contain durable public
+            // Blob URLs rather than inline image bytes. Preserve those URLs;
+            // photo metadata now lives in Neon while binaries remain in Blob.
+            index.push({ id: p.id || crypto.randomUUID(), dataUrl: p.dataUrl })
+          }
+        }
         next.photos = index
       }
       await writeState(next)
