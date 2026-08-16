@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { AlertTriangle, BarChart3 } from 'lucide-react'
-import { computeStats, computePairStats, computeDuoStats, computeHeadToHead, computeAbandonedMatches, filterByPeriod, matchesForPlayer, matchesForPair } from '../lib/ranking'
+import { AlertTriangle, BarChart3, Pencil, Plus, Save, Trash2, X } from 'lucide-react'
+import { computeStats, computePairStats, computeDuoStats, computeHeadToHead, computeAbandonedMatches, applyPeriod, matchesForPlayer, matchesForPair } from '../lib/ranking'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 const TABS = [
   { key: 'duo',        label: 'Duo Head-to-Head' },
@@ -8,6 +9,7 @@ const TABS = [
   { key: 'individual', label: 'Individual Rankings' },
   { key: 'pairs',      label: 'Pair Rankings' },
   { key: 'abandoned',  label: 'Abandoned Matches' },
+  { key: 'partyDue',   label: 'Party Dues' },
 ]
 
 const PERIODS = [
@@ -34,16 +36,11 @@ function Bar({ label, value, max, color = 'bg-orange-600' }) {
   )
 }
 
-function applyPeriod(matches, period, from, to) {
-  if (period === 'custom') return matches.filter((m) => (!from || m.date >= from) && (!to || m.date <= to))
-  return filterByPeriod(matches, period)
-}
-
-function PeriodTabs({ period, onPeriod, from, to, onFrom, onTo }) {
+export function PeriodTabs({ period, onPeriod, from, to, onFrom, onTo, periods = PERIODS }) {
   return (
     <div className="flex flex-wrap items-center gap-2 mb-4">
       <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-full p-1">
-        {PERIODS.map((p) => (
+        {periods.map((p) => (
           <button key={p.key} onClick={() => onPeriod(p.key)}
             className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide transition ${
               period === p.key ? 'bg-slate-900 dark:bg-orange-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
@@ -353,10 +350,85 @@ function AbandonedSection({ matches }) {
   )
 }
 
-export default function Report({ data }) {
+function DueEditForm({ due, onSave, onCancel }) {
+  const [count, setCount] = useState(String(due.count))
+  const [comment, setComment] = useState(due.comment || '')
+  return (
+    <div className="flex flex-wrap items-center gap-2 mt-2">
+      <input type="number" min={0} value={count} onChange={(e) => setCount(e.target.value)} className={`${dateCls} w-20`} />
+      <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Comment" className={`${dateCls} flex-1 min-w-[8rem]`} />
+      <button onClick={() => onSave({ count: Number(count) || 0, comment })} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700 transition">
+        <Save size={12} /> Save
+      </button>
+      <button onClick={onCancel} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+        <X size={12} /> Cancel
+      </button>
+    </div>
+  )
+}
+
+function PartyDueSection({ dues, players, isSuperAdmin, onAdd, onUpdate, onDelete }) {
+  const [form, setForm] = useState({ name: players[0] || '', count: '', comment: '' })
+  const [editingId, setEditingId] = useState(null)
+  const [confirm, setConfirm] = useState(null)
+
+  function handleAdd(e) {
+    e.preventDefault()
+    if (!form.name) return
+    onAdd({ name: form.name, count: Number(form.count) || 0, comment: form.comment.trim() })
+    setForm({ name: players[0] || '', count: '', comment: '' })
+  }
+
+  return (
+    <div>
+      {isSuperAdmin && (
+        <form onSubmit={handleAdd} className="flex flex-wrap gap-2 mb-4">
+          <select value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className={selectCls}>
+            {players.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <input type="number" min={0} value={form.count} onChange={(e) => setForm((f) => ({ ...f, count: e.target.value }))} placeholder="Count" className={`${dateCls} w-24`} />
+          <input type="text" value={form.comment} onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))} placeholder="Comment (optional)" className={`${dateCls} flex-1 min-w-[10rem]`} />
+          <button className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-600 text-white text-sm font-medium hover:bg-orange-700">
+            <Plus size={15} /> Add
+          </button>
+        </form>
+      )}
+      {dues.length === 0 ? <p className="text-slate-400 text-sm">No party dues recorded.</p> : (
+        <div className="space-y-1.5">
+          {dues.map((d) => (
+            <div key={d.id} className="px-3 py-2 rounded-lg border dark:border-slate-700 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-slate-700 dark:text-slate-200">{d.name}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-orange-600 font-bold">{d.count}</span>
+                  {isSuperAdmin && editingId !== d.id && (
+                    <>
+                      <button onClick={() => setEditingId(d.id)} className="p-1 rounded text-slate-300 hover:text-orange-500" title="Edit"><Pencil size={13} /></button>
+                      <button onClick={() => setConfirm(d)} className="p-1 rounded text-slate-300 hover:text-red-500" title="Delete"><Trash2 size={13} /></button>
+                    </>
+                  )}
+                </div>
+              </div>
+              {d.comment && editingId !== d.id && <p className="text-xs text-slate-500 dark:text-slate-400 italic mt-1">{d.comment}</p>}
+              {editingId === d.id && (
+                <DueEditForm due={d} onCancel={() => setEditingId(null)}
+                  onSave={(updates) => { setEditingId(null); onUpdate(d.id, updates) }} />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      <ConfirmDialog open={!!confirm} title="Delete this due?" message={confirm ? `The due entry for "${confirm.name}" will be removed.` : ''}
+        confirmLabel="Delete" onConfirm={() => { onDelete(confirm.id); setConfirm(null) }} onCancel={() => setConfirm(null)} />
+    </div>
+  )
+}
+
+export default function Report({ data, actions, isSuperAdmin }) {
   const [tab, setTab] = useState('duo')
   const players = data.players
   const matches = data.matches
+  const dues = data.dues || []
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-4">
@@ -371,7 +443,10 @@ export default function Report({ data }) {
             }`}>{t.label}</button>
         ))}
       </div>
-      {players.length < 2 ? <p className="text-slate-400 text-sm">Add at least 2 players first.</p> : (
+      {tab === 'partyDue' ? (
+        <PartyDueSection dues={dues} players={players} isSuperAdmin={isSuperAdmin}
+          onAdd={actions?.addDue} onUpdate={actions?.updateDue} onDelete={actions?.deleteDue} />
+      ) : players.length < 2 ? <p className="text-slate-400 text-sm">Add at least 2 players first.</p> : (
         <>
           {tab === 'duo' && <DuoSection matches={matches} players={players} />}
           {tab === 'combos' && <CombosSection matches={matches} players={players} />}

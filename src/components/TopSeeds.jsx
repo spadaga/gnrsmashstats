@@ -51,9 +51,9 @@ export default function TopSeeds({ matches }) {
   const [period, setPeriod] = useState('all')
   const [drilldown, setDrilldown] = useState(null)
   const periodMatches = filterByPeriod(matches, period)
-  // Same qualify rule as Leaderboard: Today can't hit 4 games so everyone who
-  // played ranks; every other period needs the standard 4-match minimum.
-  const minMatches = period === 'today' ? 1 : 4
+  // Same qualify rule as Leaderboard: Today can't hit 3 games so everyone who
+  // played ranks; every other period needs the standard 3-match minimum.
+  const minMatches = period === 'today' ? 1 : 3
   const pairs = computeTopPairs(periodMatches, minMatches).filter((p) => p.qualified)
   const top2 = pairs.slice(0, 2)
   const allTimePairs = computeTopPairs(matches)

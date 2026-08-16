@@ -38,6 +38,17 @@ export default function App() {
 
   useEffect(loadState, [])
 
+  // Light polling so a match logged/edited on one device shows up on other
+  // devices without a manual refresh. No WebSocket infra needed at this
+  // scale — just re-fetch and swap in the latest state.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (busy) return // don't clobber an in-flight optimistic update
+      api.getState().then(setData).catch(() => {}) // silent — transient poll failures shouldn't blank the app
+    }, 10000)
+    return () => clearInterval(id)
+  }, [busy])
+
   useEffect(() => {
     if (!toast) return
     const t = setTimeout(() => setToast(null), 2500)
@@ -82,6 +93,7 @@ export default function App() {
   }
 
   function viewProfile(name) {
+    window.scrollTo({ top: 0, behavior: 'instant' })
     setProfileFrom(page)
     setProfilePlayer(name)
     setPage('profile')
@@ -135,6 +147,9 @@ export default function App() {
     addSlot:      (slot)          => withFeedback(api.addSlot(slot).then((slots) => setData((d) => ({ ...d, slots }))), 'Slot added'),
     updateSlot:   (id, updates)   => withFeedback(api.updateSlot(id, updates).then((slots) => setData((d) => ({ ...d, slots }))), 'Slot updated'),
     deleteSlot:   (id)            => withFeedback(api.deleteSlot(id).then((slots) => setData((d) => ({ ...d, slots }))), 'Slot deleted'),
+    addDue:       (due)           => withFeedback(api.addDue(due).then((dues) => setData((d) => ({ ...d, dues }))), 'Due added'),
+    updateDue:    (id, updates)   => withFeedback(api.updateDue(id, updates).then((dues) => setData((d) => ({ ...d, dues }))), 'Due updated'),
+    deleteDue:    (id)            => withFeedback(api.deleteDue(id).then((dues) => setData((d) => ({ ...d, dues }))), 'Due deleted'),
   }
 
   return (
@@ -168,7 +183,7 @@ export default function App() {
           <Dashboard data={{ ...data, players: names }} actions={actions} onNavigate={setPage} onImport={handleImport} isAdmin={isAdmin} isSuperAdmin={isSuperAdmin} photoByName={photoByName} onViewProfile={viewProfile} />
         )}
         {page === 'log' && isAdmin && (
-          <LogMatch players={names} actions={actions} onNavigate={setPage} isSuperAdmin={isSuperAdmin} photoByName={photoByName} />
+          <LogMatch players={names} matches={data.matches} actions={actions} onNavigate={setPage} isSuperAdmin={isSuperAdmin} photoByName={photoByName} />
         )}
         {page === 'players' && (
           <Players players={data.players} actions={actions} isAdmin={isSuperAdmin} onViewProfile={viewProfile} />
@@ -177,10 +192,10 @@ export default function App() {
           <Slots slots={data.slots} actions={actions} isAdmin={isSuperAdmin} />
         )}
         {page === 'report' && (
-          <Report data={{ matches: data.matches, players: names }} />
+          <Report data={{ matches: data.matches, players: names, dues: data.dues }} actions={actions} isSuperAdmin={isSuperAdmin} />
         )}
         {page === 'profile' && profilePlayer && (
-          <PlayerProfile playerName={profilePlayer} players={data.players} matches={data.matches} slots={data.slots} onBack={() => setPage(profileFrom)} />
+          <PlayerProfile playerName={profilePlayer} players={data.players} matches={data.matches} slots={data.slots} dues={data.dues} onBack={() => setPage(profileFrom)} />
         )}
       </main>
 

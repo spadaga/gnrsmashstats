@@ -46,6 +46,14 @@ CREATE TABLE IF NOT EXISTS slots (
   seq bigserial
 );
 
+CREATE TABLE IF NOT EXISTS dues (
+  id uuid PRIMARY KEY,
+  name text NOT NULL,
+  count integer NOT NULL DEFAULT 0,
+  comment text NOT NULL DEFAULT '',
+  seq bigserial
+);
+
 -- Point-in-time full-state backups (version history). Left as a jsonb blob
 -- deliberately: a snapshot is inherently "the whole app at time T", never
 -- queried piecemeal, only restored wholesale.

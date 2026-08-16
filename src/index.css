@@ -1,6 +1,18 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Tailwind v4 changed the default `border` color from v3's gray-200 to
+   currentColor. Nearly every card here uses `border dark:border-slate-700`
+   with no explicit light-mode color, so light theme fell back to
+   currentColor — inconsistent/harsh borders. This restores the v3-style
+   default for light mode only; dark mode's explicit dark:border-* classes
+   still override it everywhere they're set. */
+@layer base {
+  *, ::before, ::after {
+    border-color: var(--color-slate-200, #e2e8f0);
+  }
+}
+
 @keyframes ticker {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }

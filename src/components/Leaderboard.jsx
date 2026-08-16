@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Medal } from 'lucide-react'
-import { computeStats, computeTopPairs, filterByPeriod, matchesForPlayer, matchesForPair } from '../lib/ranking'
+import { computeStats, computeTopPairs, computeRanks, filterByPeriod, matchesForPlayer, matchesForPair } from '../lib/ranking'
 import Avatar from './Avatar'
 import MatchesModal from './MatchesModal'
 
@@ -17,28 +17,15 @@ const PERIODS = [
   { key: 'all',   label: 'Overall' },
 ]
 
-// Standard competition ranking (1-2-2-4): rows tied on win rate share a rank,
-// and the next distinct rank skips the tied count. Shared by both Singles
-// (computeStats) and Doubles (computeTopPairs) — both already sort
-// qualified-first and carry the same qualified/winRate/wins/losses shape.
-function computeRanks(rows) {
-  const ranks = []
-  rows.forEach((s, i) => {
-    if (!s.qualified) { ranks.push(null); return }
-    ranks.push(i > 0 && rows[i - 1].qualified && rows[i - 1].winRate === s.winRate ? ranks[i - 1] : i + 1)
-  })
-  return ranks
-}
-
 export default function Leaderboard({ matches, players, photoByName = {}, onViewProfile }) {
   const [mode, setMode] = useState('singles')
   const [period, setPeriod] = useState('today')
   const [drilldown, setDrilldown] = useState(null)
   const filtered = filterByPeriod(matches, period)
-  // Today can't realistically hit 4 games, so it ranks everyone who played at
+  // Today can't realistically hit 3 games, so it ranks everyone who played at
   // all; every other period (week/month/year/overall) requires the standard
-  // 4-match qualify rule before a rank is awarded — same rule TopSeeds uses.
-  const minMatches = period === 'today' ? 1 : 4
+  // 3-match qualify rule before a rank is awarded — same rule TopSeeds uses.
+  const minMatches = period === 'today' ? 1 : 3
   const rows = mode === 'singles' ? computeStats(filtered, players, minMatches) : computeTopPairs(filtered, minMatches)
   const ranks = computeRanks(rows)
 

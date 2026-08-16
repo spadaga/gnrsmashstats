@@ -1,14 +1,23 @@
 import { useState } from 'react'
 import PlayerPicker from './PlayerPicker'
+import ConfirmDialog from './ConfirmDialog'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const MAX_SCORE = 30
 
 const empty = () => ({ date: today(), p1: '', p2: '', p3: '', p4: '', score1: '', score2: '', comment: '' })
 
-export default function MatchForm({ players, onAddMatch, isSuperAdmin = false, photoByName = {} }) {
+const pairKey = (t) => [...t].sort().join('|')
+function isSamePairing(m, t1, t2) {
+  const a = [pairKey(t1), pairKey(t2)].sort().join('||')
+  const b = [pairKey(m.team1), pairKey(m.team2)].sort().join('||')
+  return a === b
+}
+
+export default function MatchForm({ players, matches = [], onAddMatch, isSuperAdmin = false, photoByName = {} }) {
   const [form, setForm] = useState(empty())
   const [error, setError] = useState('')
+  const [pendingMatch, setPendingMatch] = useState(null)
 
   function set(field, value) { setForm((f) => ({ ...f, [field]: value })) }
 
@@ -41,7 +50,15 @@ export default function MatchForm({ players, onAddMatch, isSuperAdmin = false, p
     }
     if (s1 === s2) return setError('Scores cannot be tied.')
 
-    await onAddMatch({ date, team1: [p1, p2], team2: [p3, p4], score1: s1, score2: s2, comment: comment.trim() })
+    const payload = { date, team1: [p1, p2], team2: [p3, p4], score1: s1, score2: s2, comment: comment.trim() }
+    const duplicate = matches.some((m) => m.date === date && isSamePairing(m, [p1, p2], [p3, p4]))
+    if (duplicate) { setPendingMatch(payload); return }
+
+    await submitMatch(payload)
+  }
+
+  async function submitMatch(payload) {
+    await onAddMatch(payload)
     setForm(empty())
     setError('')
   }
@@ -96,6 +113,13 @@ export default function MatchForm({ players, onAddMatch, isSuperAdmin = false, p
         className="w-full sm:w-auto px-5 py-2 rounded-lg bg-orange-600 text-white font-medium hover:bg-orange-700 transition">
         Save Match
       </button>
+
+      <ConfirmDialog
+        open={!!pendingMatch} title="Duplicate matchup?" danger={false}
+        message="This exact team1-vs-team2 pairing already has a match logged today. Log it anyway?"
+        confirmLabel="Log anyway"
+        onConfirm={async () => { const m = pendingMatch; setPendingMatch(null); await submitMatch(m) }}
+        onCancel={() => setPendingMatch(null)} />
     </form>
   )
 }

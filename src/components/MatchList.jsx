@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AlertTriangle, Loader2, Pencil, Save, Search, Swords, Trophy, Trash2, X } from 'lucide-react'
 import ConfirmDialog from './ConfirmDialog'
 import { isAbandoned } from '../lib/ranking'
@@ -108,6 +108,18 @@ export default function MatchList({ matches, players, onDelete, onUpdate, onLogM
   const [h2h, setH2h] = useState(['', '', '', ''])
 
   const playerNames = (players || []).map((p) => (typeof p === 'string' ? p : p.name))
+
+  // Sequence number per match, derived from the full (unfiltered) list so the
+  // same match shows the same number regardless of which of the 3 mode tabs
+  // it's viewed in. Oldest match = #1; since the UI lists newest-first, this
+  // reads as descending (132, 131, 130, ...) top to bottom.
+  const seqById = useMemo(() => {
+    const oldestFirst = matches.map((m, i) => ({ m, i })).sort((a, b) => {
+      if (a.m.loggedAt && b.m.loggedAt) return a.m.loggedAt < b.m.loggedAt ? -1 : 1
+      return a.i - b.i
+    })
+    return new Map(oldestFirst.map(({ m }, idx) => [m.id, idx + 1]))
+  }, [matches])
 
   const [ha, hb, hc, hd] = h2h
   const h2hChosen = h2h.filter(Boolean)
@@ -245,6 +257,7 @@ export default function MatchList({ matches, players, onDelete, onUpdate, onLogM
                   }`}>
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
+                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-0.5">Match #{seqById.get(m.id)}</p>
                         <div className="flex items-center gap-3 text-sm">
                           <div className={`text-right flex-1 ${team1Won ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}>
                             {team1Won && <Trophy size={12} className="inline mb-0.5 mr-1 text-orange-500" />}

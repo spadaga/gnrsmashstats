@@ -1,5 +1,5 @@
-// Thin fetch client for the local JSON-file backend (server/apiPlugin.js).
-// All data lives in ./data/*.json and ./public/photos/* on disk.
+// Thin fetch client for the Neon-backed API (api/handler.js). Locally this
+// hits the same production API through the Vite dev proxy — see CLAUDE.md.
 const BASE = '/api'
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
@@ -30,6 +30,10 @@ export const updatePlayer = (name, updates) => req(`/players/${encodeURIComponen
 export const addSlot = (slot) => req('/slots', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(slot) })
 export const updateSlot = (id, updates) => req(`/slots/${id}`, { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify(updates) })
 export const deleteSlot = (id) => req(`/slots/${id}`, { method: 'DELETE' })
+
+export const addDue = (due) => req('/dues', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(due) })
+export const updateDue = (id, updates) => req(`/dues/${id}`, { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify(updates) })
+export const deleteDue = (id) => req(`/dues/${id}`, { method: 'DELETE' })
 
 export const exportAll = () => {
   window.location.href = `${BASE}/export`

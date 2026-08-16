@@ -8,11 +8,13 @@
 import { put, del } from '@vercel/blob'
 import crypto from 'node:crypto'
 import {
+  addDue,
   addMatch,
   addPhoto,
   addPlayer,
   addSlot,
   addVideo,
+  deleteDueById,
   deleteMatch,
   deletePhotoById,
   deletePlayerByName,
@@ -22,6 +24,7 @@ import {
   listSnapshots,
   readState as readDatabaseState,
   snapshotState,
+  updateDueById,
   updateMatch,
   updatePlayerByName,
   updateSlotById,
@@ -59,7 +62,7 @@ const DEFAULT_SLOTS = [
 ].map((s) => ({ ...s, id: crypto.randomUUID() }))
 
 async function readState() {
-  return readDatabaseState({ players: DEFAULT_PLAYERS, matches: [], videos: [], photos: [], slots: DEFAULT_SLOTS })
+  return readDatabaseState({ players: DEFAULT_PLAYERS, matches: [], videos: [], photos: [], slots: DEFAULT_SLOTS, dues: [] })
 }
 
 const MAX_VERSIONS = 3
@@ -125,6 +128,7 @@ export default async function handler(req, res) {
       if (Array.isArray(body.matches)) next.matches = body.matches
       if (Array.isArray(body.videos)) next.videos = body.videos.slice(0, MAX_VIDEOS)
       if (Array.isArray(body.slots)) next.slots = body.slots
+      if (Array.isArray(body.dues)) next.dues = body.dues
       if (Array.isArray(body.photos)) {
         const index = []
         for (const p of body.photos.slice(0, MAX_PHOTOS)) {
@@ -221,6 +225,21 @@ export default async function handler(req, res) {
       if (req.method === 'DELETE') {
         await snapshotState(state)
         return res.status(200).json(await deleteSlotById(param))
+      }
+    }
+
+    if (resource === 'dues') {
+      if (req.method === 'POST') {
+        const due = req.body || {}
+        await snapshotState(state)
+        return res.status(200).json(await addDue({ ...due, id: crypto.randomUUID() }))
+      }
+      if (req.method === 'PUT') {
+        return res.status(200).json(await updateDueById(param, req.body || {}))
+      }
+      if (req.method === 'DELETE') {
+        await snapshotState(state)
+        return res.status(200).json(await deleteDueById(param))
       }
     }
 

@@ -65,6 +65,13 @@ export function ensureSchema() {
       end_date date NOT NULL,
       seq bigserial
     )`)
+    await db.query(`CREATE TABLE IF NOT EXISTS dues (
+      id uuid PRIMARY KEY,
+      name text NOT NULL,
+      count integer NOT NULL DEFAULT 0,
+      comment text NOT NULL DEFAULT '',
+      seq bigserial
+    )`)
     await db.query(`CREATE TABLE IF NOT EXISTS app_snapshots (
       snapshot_date date PRIMARY KEY,
       state jsonb NOT NULL,
@@ -132,18 +139,24 @@ async function selectSlots(client) {
   return rows.map((r) => ({ id: r.id, name: r.name, time: r.time, endDate: toDateStr(r.end_date) }))
 }
 
+async function selectDues(client) {
+  const { rows } = await client.query(`SELECT id, name, count, comment FROM dues ORDER BY seq`)
+  return rows.map((r) => ({ id: r.id, name: r.name, count: r.count, comment: r.comment || '' }))
+}
+
 export async function readState(defaultState) {
   await ensureSchema()
   const pool = getPool()
-  const [players, matches, videos, photos, slots] = await Promise.all([
+  const [players, matches, videos, photos, slots, dues] = await Promise.all([
     selectPlayers(pool),
     selectMatches(pool),
     selectVideos(pool),
     selectPhotos(pool),
     selectSlots(pool),
+    selectDues(pool),
   ])
-  if (players.length || matches.length || videos.length || photos.length || slots.length) {
-    return { players, matches, videos, photos, slots }
+  if (players.length || matches.length || videos.length || photos.length || slots.length || dues.length) {
+    return { players, matches, videos, photos, slots, dues }
   }
   await writeState(defaultState)
   return defaultState
@@ -159,7 +172,7 @@ export async function writeState(state) {
   try {
     await client.query('BEGIN')
     await client.query(`SELECT pg_advisory_xact_lock(684276491)`)
-    await client.query(`TRUNCATE players, matches, videos, photos, slots RESTART IDENTITY`)
+    await client.query(`TRUNCATE players, matches, videos, photos, slots, dues RESTART IDENTITY`)
 
     const playerIdByName = new Map()
     for (const p of state.players || []) {
@@ -197,6 +210,13 @@ export async function writeState(state) {
       await client.query(
         `INSERT INTO slots (id, name, time, end_date) VALUES ($1,$2,$3,$4)`,
         [s.id || crypto.randomUUID(), s.name, s.time, s.endDate]
+      )
+    }
+
+    for (const due of state.dues || []) {
+      await client.query(
+        `INSERT INTO dues (id, name, count, comment) VALUES ($1,$2,$3,$4)`,
+        [due.id || crypto.randomUUID(), due.name, due.count || 0, due.comment || '']
       )
     }
 
@@ -344,6 +364,36 @@ export async function deleteSlotById(id) {
   await ensureSchema()
   await getPool().query(`DELETE FROM slots WHERE id = $1`, [id])
   return selectSlots(getPool())
+}
+
+export async function addDue(due) {
+  await ensureSchema()
+  await getPool().query(
+    `INSERT INTO dues (id, name, count, comment) VALUES ($1,$2,$3,$4)`,
+    [due.id, due.name, due.count || 0, due.comment || '']
+  )
+  return selectDues(getPool())
+}
+
+export async function updateDueById(id, updates) {
+  await ensureSchema()
+  const sets = []
+  const values = []
+  let i = 1
+  if (updates.name !== undefined) { sets.push(`name = $${i++}`); values.push(updates.name) }
+  if (updates.count !== undefined) { sets.push(`count = $${i++}`); values.push(updates.count) }
+  if (updates.comment !== undefined) { sets.push(`comment = $${i++}`); values.push(updates.comment) }
+  if (sets.length) {
+    values.push(id)
+    await getPool().query(`UPDATE dues SET ${sets.join(', ')} WHERE id = $${i}`, values)
+  }
+  return selectDues(getPool())
+}
+
+export async function deleteDueById(id) {
+  await ensureSchema()
+  await getPool().query(`DELETE FROM dues WHERE id = $1`, [id])
+  return selectDues(getPool())
 }
 
 export async function snapshotState(state) {

@@ -179,7 +179,10 @@ item_key, position, value jsonb)` generic-table design was replaced — see
   `team1`/`team2` array to avoid an orphaned "ghost player"; see
   `PUT /api/players/:name` below).
 - `videos(id bigserial PK, url)`, `photos(id uuid PK, data_url, seq)`,
-  `slots(id uuid PK, name, time, end_date, seq)`.
+  `slots(id uuid PK, name, time, end_date, seq)`, `dues(id uuid PK, name,
+  count, comment, seq)` — party-due entries (`count` is a plain occurrence
+  count, not a currency amount), read by everyone, written super-admin-only
+  via the Report page's Party Dues tab.
 - `id`/`seq` columns are `bigserial`, giving stable insertion order for free —
   no `position` bookkeeping to maintain on every write.
 - `app_snapshots(snapshot_date, state jsonb, created_at)` is unchanged: still
@@ -188,18 +191,19 @@ item_key, position, value jsonb)` generic-table design was replaced — see
 - **Targeted writes**: `api/db.js` exposes one function per mutation
   (`addPlayer`, `updatePlayerByName`, `deletePlayerByName`, `addMatch`,
   `updateMatch`, `deleteMatch`, `addVideo`, `deleteVideoAt`, `addPhoto`,
-  `deletePhotoById`, `addSlot`, `updateSlotById`, `deleteSlotById`) — each
-  touches only the relevant row(s), unlike the old design where every single
-  edit deleted and re-inserted all rows of all five resources.
+  `deletePhotoById`, `addSlot`, `updateSlotById`, `deleteSlotById`, `addDue`,
+  `updateDueById`, `deleteDueById`) — each touches only the relevant row(s),
+  unlike the old design where every single edit deleted and re-inserted all
+  rows of all resources.
 - `writeState(state)` still exists as a **bulk full-replace** (advisory lock
-  `684276491`, `TRUNCATE` + re-insert all 5 tables in one transaction) — used
+  `684276491`, `TRUNCATE` + re-insert all 6 tables in one transaction) — used
   only by genuinely whole-state operations: `POST /api/import`,
   `POST /api/restore/:ts`, and `scripts/migrate-json.js`/
-  `scripts/backfill-normalized.js`. `readState()` reads all 5 tables (joining
+  `scripts/backfill-normalized.js`. `readState()` reads all 6 tables (joining
   `matches` to `players` 4× to resolve names) and reconstructs the same JSON
   shape the frontend has always received.
 - On a truly empty database, the API seeds `DEFAULT_PLAYERS`, empty matches,
-  videos/photos, and `DEFAULT_SLOTS` through the targeted insert functions.
+  videos/photos/dues, and `DEFAULT_SLOTS` through the targeted insert functions.
 
 ### Schema history
 
@@ -250,6 +254,9 @@ or Vercel will report `FUNCTION_INVOCATION_FAILED`.
 | POST | `/api/slots` | Add court slot |
 | PUT | `/api/slots/:id` | Update slot |
 | DELETE | `/api/slots/:id` | Delete slot |
+| POST | `/api/dues` | Add party-due entry `{ name, count, comment? }` |
+| PUT | `/api/dues/:id` | Update a due entry |
+| DELETE | `/api/dues/:id` | Delete a due entry |
 | GET | `/api/export` | Download full JSON snapshot |
 | POST | `/api/import` | Restore full snapshot |
 | GET | `/api/versions` | List last 3 daily snapshots |
@@ -275,12 +282,25 @@ Blob objects during a full import, preventing damage to the original store.
 ## Ranking
 
 `src/lib/ranking.js`:
+- `isGuestName(name)` — `true` for a one-off player name like `Guest1`/`Guest 2` (regex
+  `/^guest\s*\d*$/i`). There's no DB flag for this, just the naming convention. `computeStats` skips
+  guest names when seeding from `players` and when discovering names from matches (a real player's W/L
+  against a guest still counts for the real player); `computePairStats` skips a pair entirely if either
+  member is a guest. This is how a pair like "Guest1 & Sepuri" gets excluded from every
+  ranking/leaderboard display while still showing normally in match lists/history (`MatchList`,
+  `MatchesModal`, etc. show every match regardless of guest involvement — only rankings filter them out).
 - `computeStats(matches, players, minMatches = 4)` — wins/losses/pointDiff/winRate/played, plus
   `qualified: boolean`. Players with `played >= minMatches` are "qualified" and sorted Win% → Wins →
   fewer Losses; players below that (but > 0 played) are sorted the same way but always listed below
-  qualified players; 0 played = unranked, listed last. `minMatches` defaults to 4 for callers that want
-  the standard qualify rule (`Report.jsx`'s Individual Rankings, and `Leaderboard`/`TopSeeds` for every
-  period except Today — see their sections below).
+  qualified players; 0 played = unranked, listed last. `minMatches` defaults to 4 for `Report.jsx`'s
+  Individual Rankings and `PlayerProfile`'s overall win-rate line; `Leaderboard`/`TopSeeds` pass `3` for
+  every period except Today — see their sections below.
+- `computeRanks(rows)` — standard competition ranking (1-2-2-4): rows tied on `winRate` share a rank, the
+  next distinct rank skips the tied count. Works unmodified against `computeStats` or `computeTopPairs`
+  output. Shared by `Leaderboard` (singles + doubles) and `PlayerProfile`'s per-period "Your Ranking" card.
+- `applyPeriod(matches, period, from, to)` — like `filterByPeriod` but also supports an explicit
+  `'custom'` from/to date range. Backs the period-tab UI (`PeriodTabs`, exported from `Report.jsx`) shared
+  by `Report.jsx`'s Individual/Pair Rankings tabs and `PlayerProfile`'s "Your Ranking" card.
 - `filterByPeriod(matches, period)` — keys: `'all'` / `'today'` / `'year'` / `'month'` / `'week'`
 - `filterByWeek(matches, which)` — keys: `'current'` / `'last'`. Week starts Sunday. No longer used by any
   component (`TopSeeds` moved to the shared `filterByPeriod` tab set below) — kept as a ranking.js export
@@ -347,14 +367,22 @@ Blob objects during a full import, preventing damage to the original store.
 Router (dashboard / log / players / slots / report / **profile**). Reads `localStorage.adminName` on
 mount to restore session. Reads `localStorage.theme` and applies `dark` class to
 `<html>` before render. `toggleDark()` flips class + saves preference.
-All 12 actions go through `withFeedback()` → full-screen transparent overlay +
+All 16 actions go through `withFeedback()` → full-screen transparent overlay +
 toast on settle.
-- **`viewProfile(name)`**: remembers the current page as `profileFrom`, sets `profilePlayer`, and
-  navigates to `page: 'profile'`. Passed down as `onViewProfile` to `Dashboard` (→ `Leaderboard`) and to
-  `Players`, so clicking a singles Leaderboard row's name/avatar or a Players-page name opens the same
-  `PlayerProfile`. `PlayerProfile`'s `onBack` returns to `profileFrom` rather than always `dashboard`.
-- `photoByName` (from `photoMap(data.players)`) is now also passed to `Dashboard` → `Leaderboard`, not
+- **`viewProfile(name)`**: scrolls the window to the top (`window.scrollTo({top:0,behavior:'instant'})` —
+  otherwise the profile page could render mid-scroll-position from whatever page it was opened from),
+  remembers the current page as `profileFrom`, sets `profilePlayer`, and navigates to `page: 'profile'`.
+  Passed down as `onViewProfile` to `Dashboard` (→ `Leaderboard`) and to `Players`, so clicking a singles
+  Leaderboard row's name/avatar or a Players-page name opens the same `PlayerProfile`. `PlayerProfile`'s
+  `onBack` returns to `profileFrom` rather than always `dashboard`.
+- `photoByName` (from `photoMap(data.players)`) is also passed to `Dashboard` → `Leaderboard`, not
   just to `LogMatch`.
+- **Live polling for cross-device sync**: a `setInterval` (10s) re-calls `api.getState()` and swaps it
+  into `data`, so a match logged on one device shows up on other open devices without a manual reload.
+  Skips the tick while `busy` (an in-flight mutation) to avoid clobbering an optimistic update, and
+  swallows poll failures silently (routed through `.catch(() => {})`, not `setLoadError`, which stays
+  reserved for the initial load) so a transient network blip doesn't blank the app. No WebSocket
+  infrastructure — plain polling is enough at this app's scale.
 
 ### `src/components/Header.jsx`
 Logo + wordmark + nav pills: Dashboard / Log Match (admin only) / Players / Court Slots / Report.
@@ -390,8 +418,12 @@ period tabs independently, same as `Leaderboard`). Forwards `photoByName` and `o
 Wraps `MatchForm.jsx`, navigates back to Dashboard on save.
 
 ### `src/pages/Report.jsx`
-Read-only analytics page (nav: Report). 5 tabs; the first 4 each have a bar chart (plain div-width bars,
-no chart lib) + text list:
+Analytics page (nav: Report), mostly read-only. 6 tabs; the first 4 each have a bar chart (plain
+div-width bars, no chart lib) + text list. Exports `PeriodTabs` (takes an optional `periods` prop,
+defaulting to this file's own Day/Week/Month/Year/Custom Range set) as a named export alongside the
+default `Report` component, so `PlayerProfile.jsx` can reuse the same period-tab UI with its own period
+list — `applyPeriod` itself lives in `ranking.js`, not here, so this file's exports stay component-only
+(mixing a plain utility function in here trips the react-refresh `only-export-components` lint rule).
 - **Duo Head-to-Head**: pick players A & B → two stacked sub-sections:
   - **As Teammates** (`computeDuoStats`): wins together, losses with B, and A's wins *without* B as partner.
   - **Head-to-Head — any partner** (`computeHeadToHead`): A's wins vs B and B's wins vs A when they were
@@ -417,6 +449,13 @@ no chart lib) + text list:
   `MatchRow` helpers built for Duo Head-to-Head — same toggle-to-collapse behavior throughout. `MatchRow`
   also now renders a match's `comment` (previously omitted), needed for the Abandoned Matches tab context
   even though this Report page's other tabs rarely have commented matches.
+- **Party Dues** (`PartyDueSection`): read-only list of `{name, count, comment}` rows for everyone.
+  **Super-admin only** (`isSuperAdmin` prop, threaded from `App.jsx`): an add form (player `<select>` +
+  count number input + comment text) at top, plus per-row Edit (inline count/comment inputs,
+  mirroring `MatchList.jsx`'s `EditScoreForm` Save/Cancel pattern) and Delete (`ConfirmDialog`, mirroring
+  `Slots.jsx`). Calls `actions.addDue`/`updateDue`/`deleteDue` (passed into `Report` as an `actions` prop
+  alongside `isSuperAdmin` — `Report`'s signature is `Report({ data, actions, isSuperAdmin })`, where
+  `data` now also carries `dues`). No period filter or drill-down, just the flat list.
 
 ### `src/pages/Players.jsx`
 Add/remove/edit players — **super admin only** (`isAdmin` prop here is fed `isSuperAdmin` from `App.jsx`,
@@ -446,6 +485,12 @@ players so all 4 are always unique. Scores: 0–30, no ties. Comment optional.
 `today()`, helper text "Only today's date can be logged") and `handleSubmit` overrides the date to
 today regardless of form state when `!isSuperAdmin`; the super admin can pick any past date up to
 `max=today` (no future dates allowed).
+**Duplicate-matchup confirmation**: takes a `matches` prop (threaded `App.jsx` → `LogMatch.jsx` →
+`MatchForm.jsx`); before submitting, checks whether the exact same team1-vs-team2 pairing (as an
+unordered pair-of-pairs, so which side is which doesn't matter) already has a match logged for the same
+date being submitted. If so, shows a `ConfirmDialog` ("Log it anyway?") instead of submitting immediately
+— catches accidentally re-logging the same game, without blocking a genuinely repeated matchup later in
+the day.
 
 ### `src/components/StatCards.jsx`
 Single orange card showing **Total Matches** and **Total Players** side by side (divider between).
@@ -458,11 +503,11 @@ Top pair(s) by win rate (`computeTopPairs`), scoped via **Today / This Week / Th
 Overall** pills (`filterByPeriod`) — independent of the Dashboard's FilterBar period, always receives full
 `data.matches`. Defaults to **Overall**. Seed #1 = orange card.
 **Seed #2 card is hidden on mobile** (`hidden sm:block`) — only Top Seed #1 shows below the `sm` breakpoint.
-- **Same qualify rule as `Leaderboard`**: `minMatches = period === 'today' ? 1 : 4` passed to
+- **Same qualify rule as `Leaderboard`**: `minMatches = period === 'today' ? 1 : 3` passed to
   `computeTopPairs`, and only `qualified` pairs are shown as a Top Seed — Today ranks any pair that's
-  played at all (a pair can't realistically hit 4 games in one day), every other period needs the
-  standard 4-game minimum. If no pair qualifies for the selected period, shows a "No qualified pairs…"
-  message instead of an empty grid.
+  played at all (a pair can't realistically hit 3 games in one day), every other period needs a 3-game
+  minimum. If no pair qualifies for the selected period, shows a "No qualified pairs…" message instead of
+  an empty grid.
 - Each Top Seed card is clickable — opens `MatchesModal` with that pair's matches within the selected
   period (`matchesForPair`).
 "View All →" modal lists all pair combos **across all-time matches** (not scoped to the selected period,
@@ -474,10 +519,11 @@ Dark mode supported.
 Overall** period pills (`filterByPeriod`), **defaulting to Today**. Receives raw `matches`/`players` plus
 `photoByName` and `onViewProfile` from `Dashboard`, and computes stats internally, independent of the
 Dashboard's FilterBar period.
-- **Qualify rule matches `TopSeeds`**: `minMatches = period === 'today' ? 1 : 4` passed to
+- **Qualify rule matches `TopSeeds`**: `minMatches = period === 'today' ? 1 : 3` passed to
   `computeStats`/`computeTopPairs` — Today ranks everyone/every pair that's played at least once (nothing
-  realistically reaches 4 games in a single day), every other period requires the standard 4-game minimum
-  before a rank is awarded. Unqualified/no-rank rows show **NA** for rank rather than a bare dash.
+  realistically reaches 3 games in a single day), every other period requires a 3-game minimum before a
+  rank is awarded. Unqualified/no-rank rows show **NA** for rank rather than a bare dash. `computeRanks`
+  is imported from `ranking.js` (moved there so `PlayerProfile.jsx` can share it too), not defined locally.
 - **Row layout, identical in every mode/tab and at every breakpoint**: avatar/circle **always** comes
   first (leftmost), then the name; below the name reads `{wins}W - {losses}L · {played} played ·
   {winRate}%` — win % lives here now, not on the right. The **right side holds only the rank**: a small
@@ -525,6 +571,10 @@ Dashboard's FilterBar period.
   banner shows the record, e.g. "A & B lead C & D 3–1" (or tied / no matches yet). `Clear` resets it.
 - Score box shows the point differential (`+{Math.abs(score1 - score2)}`) beneath the score, e.g. "21-17"
   with "+4" underneath — same for every match row across all three modes.
+- **Sequence number per match** ("Match #N"): derived once (`useMemo`) from the full unfiltered `matches`
+  prop, not the filtered/mode-specific list, so the same match always shows the same number regardless of
+  which of the 3 mode tabs it's viewed from. Oldest match = `#1`; since the UI already lists newest-first,
+  numbers read as descending (132, 131, 130, ...) top to bottom without needing any extra inversion.
 
 ### `src/components/VideoSection.jsx` / `PhotoGallery.jsx`
 Carousel (default) ↔ Manage (**super admin only** — `isAdmin` prop fed `isSuperAdmin` from `Dashboard.jsx`).
@@ -555,39 +605,57 @@ inline under the tile instead of overlaying the page.
 
 ### `src/pages/PlayerProfile.jsx`
 A per-player dashboard, reached by clicking a name/avatar in `Leaderboard` (Singles) or `Players.jsx`.
-Takes `{ playerName, players, matches, slots, onBack }` — no fetching of its own, just derives everything
-from the same `data` App.jsx already has in memory.
+Takes `{ playerName, players, matches, slots, dues, onBack }` — no fetching of its own, just derives
+everything from the same `data` App.jsx already has in memory.
 - **Header card**: large `Avatar`, name, role badge (Admin for `SUPER_ADMIN_NAME` or any player with
   `role === 'admin'`, else Contributor — same logic as `Players.jsx`), and a **"renewal date"**: looked up
-  by matching the player's name (case-insensitive) against `data/slots.json`'s `name` field and showing
-  that slot's `endDate`, or "No active court slot" if nothing matches. This is a best-effort join — Court
-  Slots and Players are otherwise independent lists (a slot's `name` is free text, not a player reference),
-  so a slot only shows here if its name happens to match the player's name exactly (case-insensitively).
-  Also shows their overall win rate if they're `qualified` (≥4 games) per `computeStats`.
+  by matching the player's name (case-insensitive) against `slots`' `name` field and showing that slot's
+  `endDate`, or "No active court slot" if nothing matches. This is a best-effort join — Court Slots and
+  Players are otherwise independent lists (a slot's `name` is free text, not a player reference), so a
+  slot only shows here if its name happens to match the player's name exactly (case-insensitively). Also
+  shows their overall win rate if they're `qualified` (≥4 games) per `computeStats`, and, if a matching
+  entry exists in `dues` (matched by exact name), a **Party dues: {count}** line with the comment if set —
+  read-only here; editing lives only in Report's Party Dues tab (super-admin only).
 - **Stat tiles**: Total Played / Total Wins / Total Losses / Win Rate, computed directly off every match
   the player appears in (not gated by the 4-game qualify rule — these are raw totals, not a rank). Each
   is clickable, opening `MatchesModal` with the matching subset (all / wins-only / losses-only / all again
   for Win Rate).
-- **Activity Breakdown**: Today / This Week / This Month / This Year cards, each with played/W/L for that
-  period alone (`filterByPeriod` + a local `recordFor()` tally). Each card is clickable too — opens
-  `MatchesModal` with that player's matches in that specific period (`matchesForPlayer` +
-  `filterByPeriod`).
+- **Activity Breakdown**: Today / This Week / This Month / This Year cards, each with played/W/L **and
+  win%** for that period alone (`filterByPeriod` + a local `recordFor()` tally, which now also returns
+  `winRate`). Each card is clickable too — opens `MatchesModal` with that player's matches in that
+  specific period (`matchesForPlayer` + `filterByPeriod`).
+- **Your Ranking** (new card, between Activity Breakdown and Recent Matches): this player's rank + win%
+  for a selected period — Day / Week / Month / Overall / Date Range, via the shared `PeriodTabs` component
+  imported from `Report.jsx` (passed its own `periods` list, since this page wants "Overall" where
+  Report's own tabs use "Year") and `applyPeriod` from `ranking.js`. Computes
+  `computeStats(periodMatches, players, minMatches)` for **everyone** (`minMatches = period==='today'?1:3`,
+  same rule as `Leaderboard`/`TopSeeds`), runs it through the shared `computeRanks`, then picks out this
+  player's own row — same rank badge / NA-if-unqualified convention as `Leaderboard`.
 - **Recent Matches**: up to the last 15 matches (newest-first), each tagged Won/Lost for this player, with
-  the same abandoned-match highlight/badge and comment display used elsewhere, plus a header count of how
-  many of the player's matches are abandoned.
+  the same abandoned-match highlight/badge and comment display used elsewhere. The header's abandoned-count
+  badge is **clickable** (not just a static count) — opens `MatchesModal` with just this player's abandoned
+  matches.
 
 ### `src/lib/api.js`
 All mutations return updated resource array. `updateMatch(id, updates)` → `PUT /api/matches/:id`.
-`getVersions()` / `restoreVersion(ts)` for version history.
+`addDue`/`updateDue`/`deleteDue` mirror the slot functions. `getVersions()` / `restoreVersion(ts)` for
+version history.
 
 ### `src/index.css`
 ```css
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
+@layer base { *, ::before, ::after { border-color: var(--color-slate-200, #e2e8f0); } }
 @keyframes ticker { 0% { transform: translateX(0) } 100% { transform: translateX(-50%) } }
 .animate-ticker { animation: ticker 30s linear infinite; }
 .animate-ticker:hover { animation-play-state: paused; }
 ```
+The `@layer base` rule restores a v3-style default border color for light theme. Tailwind v4 changed the
+default `border` utility color from v3's `gray-200` to `currentColor`, and almost every card in this app
+uses `border dark:border-slate-700` with no explicit light-mode color — so light theme fell back to
+`currentColor`, producing harsh/inconsistent borders (this is what read as "unprofessional" borders in
+light mode). Dark mode is unaffected: every component's explicit `dark:border-slate-700` (etc.) still
+overrides this base rule as before; only the previously-undefined light-mode default changed.
 
 ## Favicon
 
@@ -630,6 +698,18 @@ All mutations return updated resource array. `updateMatch(id, updates)` → `PUT
 - **`role` is display-only**: promoting a player to `role: 'admin'` only changes their badge on
   `Players.jsx`/`PlayerProfile` — it does not grant write access, unlock the super-admin-only UIs listed
   above, or change their login/PIN behavior. Only `SUPER_ADMIN_NAME` (Suresh Padaga) has real write access.
+- **"Guest" players are a naming convention, not a data flag**: any player named `Guest`/`Guest1`/`Guest 2`
+  etc. (`isGuestName` in `ranking.js`) is excluded from every ranking/leaderboard display (Leaderboard,
+  TopSeeds, Report's Individual/Pair Rankings) but still appears normally in raw match lists/history
+  (`MatchList`, `MatchesModal`) — only the ranking computation filters them out, nothing hides the matches
+  themselves.
+- **Qualify threshold is 3 games for `Leaderboard`/`TopSeeds`** (Today period still ranks anyone who's
+  played at all), but stays **4 games** for `Report.jsx`'s Individual/Pair Rankings and `PlayerProfile`'s
+  overall win-rate line (`computeStats`'s own default) — these two qualify rules are intentionally
+  different call sites, not a single global constant.
+- **Live sync is polling, not push**: `App.jsx` re-fetches `/api/state` every 10s so other open devices
+  pick up new/edited matches without a manual reload. There's no WebSocket/SSE layer — at this app's scale
+  a 10s poll is enough, and it avoids new infrastructure.
 
 ## Deploy
 

@@ -1,6 +1,13 @@
 // Minimum matches a player needs before Win% ranking applies.
 const MIN_RANKED_MATCHES = 4
 
+// A "guest" is a one-off player name (e.g. "Guest1") added for a single
+// session rather than a real member — excluded from every ranking/leaderboard
+// display. There's no DB-level flag for this, just the naming convention.
+export function isGuestName(name) {
+  return /^guest\s*\d*$/i.test(String(name).trim())
+}
+
 // Ranking: count wins/losses and total point difference per player across
 // all doubles matches they played in.
 // Qualified (played >= minMatches): sorted by Win% -> Wins -> fewer Losses.
@@ -11,7 +18,7 @@ const MIN_RANKED_MATCHES = 4
 // single day's Leaderboard) to rank everyone who's played at all, with no
 // partial/needs-more bucket.
 export function computeStats(matches, players, minMatches = MIN_RANKED_MATCHES) {
-  const names = players.map((p) => (typeof p === 'string' ? p : p.name))
+  const names = players.map((p) => (typeof p === 'string' ? p : p.name)).filter((n) => !isGuestName(n))
   const stats = Object.fromEntries(
     names.map((name) => [name, { name, played: 0, wins: 0, losses: 0, pointDiff: 0 }])
   )
@@ -20,12 +27,14 @@ export function computeStats(matches, players, minMatches = MIN_RANKED_MATCHES) 
     const team1Won = m.score1 > m.score2
     const diff = m.score1 - m.score2
     for (const name of m.team1) {
+      if (isGuestName(name)) continue
       if (!stats[name]) stats[name] = { name, played: 0, wins: 0, losses: 0, pointDiff: 0 }
       stats[name].played++
       stats[name].pointDiff += diff
       team1Won ? stats[name].wins++ : stats[name].losses++
     }
     for (const name of m.team2) {
+      if (isGuestName(name)) continue
       if (!stats[name]) stats[name] = { name, played: 0, wins: 0, losses: 0, pointDiff: 0 }
       stats[name].played++
       stats[name].pointDiff -= diff
@@ -55,6 +64,7 @@ export function computePairStats(matches) {
     const teams = [[...m.team1].sort(), [...m.team2].sort()]
     const won = [team1Won, !team1Won]
     teams.forEach((pair, ti) => {
+      if (pair.some(isGuestName)) return
       const key = pair.join('|||')
       if (!stats[key]) stats[key] = { players: pair, wins: 0, losses: 0, played: 0 }
       stats[key].played++
@@ -79,6 +89,20 @@ export function computeTopPairs(matches, minMatches = MIN_RANKED_MATCHES) {
   const qualified = pairs.filter((p) => p.played >= minMatches).sort(byRankRule).map((p) => ({ ...p, qualified: true }))
   const partial = pairs.filter((p) => p.played < minMatches).sort(byRankRule).map((p) => ({ ...p, qualified: false }))
   return [...qualified, ...partial]
+}
+
+// Standard competition ranking (1-2-2-4): rows tied on win rate share a rank,
+// and the next distinct rank skips the tied count. Works unmodified against
+// either computeStats or computeTopPairs output — both sort qualified-first
+// and carry the same qualified/winRate/wins/losses shape. Shared by
+// Leaderboard (singles + doubles) and PlayerProfile's per-period ranking.
+export function computeRanks(rows) {
+  const ranks = []
+  rows.forEach((s, i) => {
+    if (!s.qualified) { ranks.push(null); return }
+    ranks.push(i > 0 && rows[i - 1].qualified && rows[i - 1].winRate === s.winRate ? ranks[i - 1] : i + 1)
+  })
+  return ranks
 }
 
 // Newest-first by date — every match list surfaced in the UI (drill-downs,
@@ -153,6 +177,13 @@ export function filterByPeriod(matches, period) {
     }
     return true
   })
+}
+
+// Like filterByPeriod, but also supports an explicit 'custom' from/to date
+// range — backs the period-tab UI shared by Report.jsx and PlayerProfile.jsx.
+export function applyPeriod(matches, period, from, to) {
+  if (period === 'custom') return matches.filter((m) => (!from || m.date >= from) && (!to || m.date <= to))
+  return filterByPeriod(matches, period)
 }
 
 // Head-to-head duo report: given two players, how they do together vs. how
