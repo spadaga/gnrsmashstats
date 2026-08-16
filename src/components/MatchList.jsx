@@ -37,7 +37,7 @@ function groupByDate(matches) {
 function PlayerSelect({ value, onChange, options, placeholder }) {
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)}
-      className="border dark:border-slate-600 rounded-lg px-2 py-1 text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:border-orange-400 focus:outline-none">
+      className="flex-1 min-w-0 border dark:border-slate-600 rounded-lg px-2 py-1 text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:border-orange-400 focus:outline-none">
       {placeholder && <option value="">{placeholder}</option>}
       {options.map((p) => <option key={p} value={p}>{p}</option>)}
     </select>
@@ -70,14 +70,18 @@ function EditScoreForm({ match, players, onSave, onCancel }) {
   const inp = 'w-14 border dark:border-slate-600 rounded-lg px-2 py-1 text-sm text-center font-bold bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:border-orange-400 focus:outline-none'
   return (
     <div className="mt-2 space-y-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <PlayerSelect value={p1} onChange={setP1} options={availableFor(p1)} />
-        <span className="text-slate-400 text-xs">&</span>
-        <PlayerSelect value={p2} onChange={setP2} options={availableFor(p2)} />
-        <span className="text-slate-300 dark:text-slate-600 text-xs mx-1">vs</span>
-        <PlayerSelect value={p3} onChange={setP3} options={availableFor(p3)} />
-        <span className="text-slate-400 text-xs">&</span>
-        <PlayerSelect value={p4} onChange={setP4} options={availableFor(p4)} />
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-2 items-center">
+        <div className="flex items-center gap-1.5">
+          <PlayerSelect value={p1} onChange={setP1} options={availableFor(p1)} />
+          <span className="text-slate-400 text-xs">&</span>
+          <PlayerSelect value={p2} onChange={setP2} options={availableFor(p2)} />
+        </div>
+        <span className="text-slate-300 dark:text-slate-600 text-xs text-center sm:px-1">vs</span>
+        <div className="flex items-center gap-1.5">
+          <PlayerSelect value={p3} onChange={setP3} options={availableFor(p3)} />
+          <span className="text-slate-400 text-xs">&</span>
+          <PlayerSelect value={p4} onChange={setP4} options={availableFor(p4)} />
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1.5">
@@ -244,11 +248,12 @@ export default function MatchList({ matches, players, onDelete, onUpdate, onLogM
               <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300">{items.length} match{items.length !== 1 ? 'es' : ''}</span>
             </div>
             <div className="space-y-2">
-              {items.map((m) => {
+              {items.map((m, idx) => {
                 const team1Won = m.score1 > m.score2
                 const isEditing = editingId === m.id
                 const canModify = isSuperAdmin
                 const abandoned = isAbandoned(m)
+                const dayNo = items.length - idx
                 return (
                   <div key={m.id} className={`rounded-xl px-3 py-2.5 transition ${
                     abandoned
@@ -257,7 +262,9 @@ export default function MatchList({ matches, players, onDelete, onUpdate, onLogM
                   }`}>
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
-                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-0.5">Match #{seqById.get(m.id)}</p>
+                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-0.5">
+                          {mode === 'today' ? `Match #${dayNo}` : `Match #${dayNo} · Overall #${seqById.get(m.id)}`}
+                        </p>
                         <div className="flex items-center gap-3 text-sm">
                           <div className={`text-right flex-1 ${team1Won ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}>
                             {team1Won && <Trophy size={12} className="inline mb-0.5 mr-1 text-orange-500" />}

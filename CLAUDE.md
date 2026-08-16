@@ -67,8 +67,9 @@ The `players` resource stored in Postgres is an ordered array of objects:
 ]
 ```
 
-- Players **with** a `pin` = **admins**. Only the super admin (Suresh Padaga) has write
-  access though — regular admins can only log a match for **today** (see Admin auth below).
+- Players **with** a `pin` = **admins**. Only the super admin (Suresh Padaga) has full write
+  access though — regular admins can log matches (any date) and manage Party Dues, nothing else
+  (see Admin auth below).
 - Players **without** a `pin` = read-only.
 - PIN = last 4 digits of mobile number.
 - Old string-array format auto-migrates to objects on first read.
@@ -103,12 +104,14 @@ The `players` resource stored in Postgres is an ordered array of objects:
   shows name with ✅ → logs in automatically after 700 ms.
 - Session persisted in `localStorage.adminName` — survives page reload until
   **Logout** is clicked (which clears localStorage).
-- **Write access is super-admin-only** (Suresh Padaga = `isSuperAdmin` in `App.jsx`), with one
-  carve-out: any regular admin can log a **new** match dated today (`MatchForm`'s date field is locked to
-  today and disabled unless `isSuperAdmin`). Editing/deleting matches, add/delete/edit players, add/edit/
-  delete slots/videos/photos, import/export snapshots, and restoring versions are all super-admin-only —
-  `isAdmin` alone no longer unlocks any of those UIs (see components below, each now gated on
-  `isSuperAdmin` rather than `isAdmin`).
+- **Write access is mostly super-admin-only** (Suresh Padaga = `isSuperAdmin` in `App.jsx`), with two
+  carve-outs for any regular admin (`isAdmin`, i.e. anyone with a valid PIN): logging a **new** match for
+  **any past date, not just today** (`MatchForm`'s date field has no admin-tier restriction — any admin
+  can log/back-date a match, capped only at `max=today`, no future dates), and adding/editing/deleting
+  **Party Dues** entries (Report page's Party Dues tab, gated on `isAdmin`, not `isSuperAdmin`). Editing/
+  deleting matches, add/delete/edit players, add/edit/delete slots/videos/photos, import/export snapshots,
+  and restoring versions remain super-admin-only — `isAdmin` alone doesn't unlock those UIs (see
+  components below, each gated on `isSuperAdmin`).
 - **Super-admin identity is keyed on name, not PIN**: `isSuperAdmin = adminName === SUPER_ADMIN_NAME`
   (`'Suresh Padaga'`). PINs are meant to be changeable by their owner (last 4 digits of mobile, and mobile
   numbers change) — an earlier version of this check also required `pin === '2669'`, which meant Suresh
@@ -450,12 +453,13 @@ list — `applyPeriod` itself lives in `ranking.js`, not here, so this file's ex
   also now renders a match's `comment` (previously omitted), needed for the Abandoned Matches tab context
   even though this Report page's other tabs rarely have commented matches.
 - **Party Dues** (`PartyDueSection`): read-only list of `{name, count, comment}` rows for everyone.
-  **Super-admin only** (`isSuperAdmin` prop, threaded from `App.jsx`): an add form (player `<select>` +
-  count number input + comment text) at top, plus per-row Edit (inline count/comment inputs,
-  mirroring `MatchList.jsx`'s `EditScoreForm` Save/Cancel pattern) and Delete (`ConfirmDialog`, mirroring
-  `Slots.jsx`). Calls `actions.addDue`/`updateDue`/`deleteDue` (passed into `Report` as an `actions` prop
-  alongside `isSuperAdmin` — `Report`'s signature is `Report({ data, actions, isSuperAdmin })`, where
-  `data` now also carries `dues`). No period filter or drill-down, just the flat list.
+  **Any admin** (`canModify` prop, fed `isAdmin` from `App.jsx` — not `isSuperAdmin`, unlike every other
+  write-gated feature in this app): an add form (player `<select>` + count number input + comment text) at
+  top, plus per-row Edit (inline count/comment inputs, mirroring `MatchList.jsx`'s `EditScoreForm`
+  Save/Cancel pattern) and Delete (`ConfirmDialog`, mirroring `Slots.jsx`). Calls
+  `actions.addDue`/`updateDue`/`deleteDue` (passed into `Report` as an `actions` prop alongside `isAdmin`
+  — `Report`'s signature is `Report({ data, actions, isAdmin })`, where `data` now also carries `dues`).
+  No period filter or drill-down, just the flat list.
 
 ### `src/pages/Players.jsx`
 Add/remove/edit players — **super admin only** (`isAdmin` prop here is fed `isSuperAdmin` from `App.jsx`,
@@ -481,10 +485,9 @@ Rows within 10 days of `endDate` highlight red. Sorted by `endDate` ascending.
 **`PlayerPicker` dropdowns** (avatar + name, not free text or a plain `<select>`) for all 4 players
 sourced from the players list — see Player avatars above. Each dropdown filters out already-selected
 players so all 4 are always unique. Scores: 0–30, no ties. Comment optional.
-**Date field is super-admin-only** — regular admins get it locked to today (`disabled`, value forced to
-`today()`, helper text "Only today's date can be logged") and `handleSubmit` overrides the date to
-today regardless of form state when `!isSuperAdmin`; the super admin can pick any past date up to
-`max=today` (no future dates allowed).
+**Date field has no admin-tier restriction** — any admin (not just the super admin) can pick any past
+date up to `max=today` (no future dates allowed). This was previously super-admin-only; opened up to all
+admins by request.
 **Duplicate-matchup confirmation**: takes a `matches` prop (threaded `App.jsx` → `LogMatch.jsx` →
 `MatchForm.jsx`); before submitting, checks whether the exact same team1-vs-team2 pairing (as an
 unordered pair-of-pairs, so which side is which doesn't matter) already has a match logged for the same
@@ -559,8 +562,11 @@ Dashboard's FilterBar period.
     summary banner shows the record, e.g. "A & B lead C & D 3–1" (or tied / no matches yet).
 - Matches **grouped by date** with date headers. Today's header shows **"Today (Aug 10)"** in orange.
   The per-date match-count label is dark/bold (`text-slate-600 dark:text-slate-300`), not faint gray.
-- Edit (✏️, **super admin only**): inline form with 4 player dropdowns (reassign either team, all-4-unique
-  validated) alongside the score inputs; validates scores 0–30, no ties.
+- Edit (✏️, **super admin only**): inline form (`EditScoreForm`) with 4 player dropdowns (reassign either
+  team, all-4-unique validated) alongside the score inputs; validates scores 0–30, no ties. **Team pickers
+  are grouped left/right** (`grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr]`, each side's Player-&-Player pair
+  in its own `flex` group with a centered "vs" between them) so Team 1 and Team 2 stay visually distinct
+  and stack cleanly on narrow phones instead of the 4 dropdowns free-wrapping into a confusing order.
 - Delete (🗑️, **super admin only**): ConfirmDialog + local overlay during in-flight request.
 - Edit/Delete are gated purely by `canModify = isSuperAdmin` — regular admins can no longer edit/delete
   even today's matches (only the super admin, Suresh Padaga, has this). `isAdmin` still controls
@@ -571,10 +577,12 @@ Dashboard's FilterBar period.
   banner shows the record, e.g. "A & B lead C & D 3–1" (or tied / no matches yet). `Clear` resets it.
 - Score box shows the point differential (`+{Math.abs(score1 - score2)}`) beneath the score, e.g. "21-17"
   with "+4" underneath — same for every match row across all three modes.
-- **Sequence number per match** ("Match #N"): derived once (`useMemo`) from the full unfiltered `matches`
-  prop, not the filtered/mode-specific list, so the same match always shows the same number regardless of
-  which of the 3 mode tabs it's viewed from. Oldest match = `#1`; since the UI already lists newest-first,
-  numbers read as descending (132, 131, 130, ...) top to bottom without needing any extra inversion.
+- **Two sequence numbers per match**: a **day-local** number (`items.length - idx` within that date's
+  already-sorted-newest-first group — the first match of the day is `#1`, counting up across the day) and
+  an **overall** number (`seqById`, a `useMemo` over the full unfiltered `matches` prop, oldest match = `#1`,
+  identical across all 3 tabs for a given match since it's derived from the whole list, not the filtered
+  one). **Today** mode shows only the day-local number ("Match #22"); **Head-to-Head**/**All Matches** show
+  both ("Match #22 · Overall #126") since those views span multiple dates.
 
 ### `src/components/VideoSection.jsx` / `PhotoGallery.jsx`
 Carousel (default) ↔ Manage (**super admin only** — `isAdmin` prop fed `isSuperAdmin` from `Dashboard.jsx`).
@@ -680,8 +688,9 @@ overrides this base rule as before; only the previously-undefined light-mode def
   - Edit/delete matches in `MatchList` (`canModify = isSuperAdmin`), add/edit/delete players (`Players.jsx`),
     add/edit/delete slots (`Slots.jsx`), manage videos/photos (`VideoSection`/`PhotoGallery`), Import/Export
     (`FilterBar`) — all gated on `isSuperAdmin`, not plain `isAdmin`.
-  - The one exception: any regular admin can still log a **new** match, but only dated today —
-    `MatchForm`'s date field is locked/disabled to `today()` unless `isSuperAdmin`.
+  - Two exceptions: any regular admin can log a **new** match for **any past date** (`MatchForm`'s date
+    field has no admin-tier restriction, capped only at `max=today`), and any regular admin can
+    add/edit/delete **Party Dues** entries (Report page, `canModify = isAdmin`).
   - This is enforced client-side only (see the auth limitation above) — a regular admin could still hit
     the API routes directly to bypass these UI gates, same caveat as the rest of the auth model.
 - Snapshots are taken **once per day** (pre-mutation), labeled Today / Yesterday / Day Before Yesterday.

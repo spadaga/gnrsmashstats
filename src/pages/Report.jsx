@@ -367,7 +367,7 @@ function DueEditForm({ due, onSave, onCancel }) {
   )
 }
 
-function PartyDueSection({ dues, players, isSuperAdmin, onAdd, onUpdate, onDelete }) {
+function PartyDueSection({ dues, players, canModify, onAdd, onUpdate, onDelete }) {
   const [form, setForm] = useState({ name: players[0] || '', count: '', comment: '' })
   const [editingId, setEditingId] = useState(null)
   const [confirm, setConfirm] = useState(null)
@@ -381,7 +381,7 @@ function PartyDueSection({ dues, players, isSuperAdmin, onAdd, onUpdate, onDelet
 
   return (
     <div>
-      {isSuperAdmin && (
+      {canModify && (
         <form onSubmit={handleAdd} className="flex flex-wrap gap-2 mb-4">
           <select value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className={selectCls}>
             {players.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -401,7 +401,7 @@ function PartyDueSection({ dues, players, isSuperAdmin, onAdd, onUpdate, onDelet
                 <span className="font-semibold text-slate-700 dark:text-slate-200">{d.name}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-orange-600 font-bold">{d.count}</span>
-                  {isSuperAdmin && editingId !== d.id && (
+                  {canModify && editingId !== d.id && (
                     <>
                       <button onClick={() => setEditingId(d.id)} className="p-1 rounded text-slate-300 hover:text-orange-500" title="Edit"><Pencil size={13} /></button>
                       <button onClick={() => setConfirm(d)} className="p-1 rounded text-slate-300 hover:text-red-500" title="Delete"><Trash2 size={13} /></button>
@@ -424,7 +424,7 @@ function PartyDueSection({ dues, players, isSuperAdmin, onAdd, onUpdate, onDelet
   )
 }
 
-export default function Report({ data, actions, isSuperAdmin }) {
+export default function Report({ data, actions, isAdmin }) {
   const [tab, setTab] = useState('duo')
   const players = data.players
   const matches = data.matches
@@ -444,7 +444,7 @@ export default function Report({ data, actions, isSuperAdmin }) {
         ))}
       </div>
       {tab === 'partyDue' ? (
-        <PartyDueSection dues={dues} players={players} isSuperAdmin={isSuperAdmin}
+        <PartyDueSection dues={dues} players={players} canModify={isAdmin}
           onAdd={actions?.addDue} onUpdate={actions?.updateDue} onDelete={actions?.deleteDue} />
       ) : players.length < 2 ? <p className="text-slate-400 text-sm">Add at least 2 players first.</p> : (
         <>

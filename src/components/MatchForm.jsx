@@ -14,7 +14,7 @@ function isSamePairing(m, t1, t2) {
   return a === b
 }
 
-export default function MatchForm({ players, matches = [], onAddMatch, isSuperAdmin = false, photoByName = {} }) {
+export default function MatchForm({ players, matches = [], onAddMatch, photoByName = {} }) {
   const [form, setForm] = useState(empty())
   const [error, setError] = useState('')
   const [pendingMatch, setPendingMatch] = useState(null)
@@ -31,8 +31,7 @@ export default function MatchForm({ players, matches = [], onAddMatch, isSuperAd
   async function handleSubmit(e) {
     e.preventDefault()
     const { p1, p2, p3, p4, score1, score2, comment } = form
-    // Regular admins can only log matches for today; only the super admin may back-date.
-    const date = isSuperAdmin ? form.date : today()
+    const date = form.date
 
     // Date validation — no future dates
     if (date > today()) return setError('Match date cannot be in the future.')
@@ -71,11 +70,9 @@ export default function MatchForm({ players, matches = [], onAddMatch, isSuperAd
 
       <div>
         <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Date</label>
-        <input type="date" value={isSuperAdmin ? form.date : today()} max={today()}
+        <input type="date" value={form.date} max={today()}
           onChange={(e) => set('date', e.target.value)}
-          disabled={!isSuperAdmin}
-          className={`${inputCls} ${!isSuperAdmin ? 'opacity-60 cursor-not-allowed' : ''}`} required />
-        {!isSuperAdmin && <p className="text-xs text-slate-400 mt-1">Only today's date can be logged.</p>}
+          className={inputCls} required />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

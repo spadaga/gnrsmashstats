@@ -183,7 +183,7 @@ export default function App() {
           <Dashboard data={{ ...data, players: names }} actions={actions} onNavigate={setPage} onImport={handleImport} isAdmin={isAdmin} isSuperAdmin={isSuperAdmin} photoByName={photoByName} onViewProfile={viewProfile} />
         )}
         {page === 'log' && isAdmin && (
-          <LogMatch players={names} matches={data.matches} actions={actions} onNavigate={setPage} isSuperAdmin={isSuperAdmin} photoByName={photoByName} />
+          <LogMatch players={names} matches={data.matches} actions={actions} onNavigate={setPage} photoByName={photoByName} />
         )}
         {page === 'players' && (
           <Players players={data.players} actions={actions} isAdmin={isSuperAdmin} onViewProfile={viewProfile} />
@@ -192,7 +192,7 @@ export default function App() {
           <Slots slots={data.slots} actions={actions} isAdmin={isSuperAdmin} />
         )}
         {page === 'report' && (
-          <Report data={{ matches: data.matches, players: names, dues: data.dues }} actions={actions} isSuperAdmin={isSuperAdmin} />
+          <Report data={{ matches: data.matches, players: names, dues: data.dues }} actions={actions} isAdmin={isAdmin} />
         )}
         {page === 'profile' && profilePlayer && (
           <PlayerProfile playerName={profilePlayer} players={data.players} matches={data.matches} slots={data.slots} dues={data.dues} onBack={() => setPage(profileFrom)} />
