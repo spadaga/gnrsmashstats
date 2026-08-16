@@ -3,29 +3,45 @@ import ws from 'ws'
 
 if (typeof WebSocket === 'undefined') neonConfig.webSocketConstructor = ws
 
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL
-if (!connectionString) throw new Error('DATABASE_URL (or POSTGRES_URL) is required')
-
-const pool = new Pool({ connectionString })
+let pool
 let schemaReady
 
+function getPool() {
+  if (pool) return pool
+  const connectionString = process.env.DATABASE_URL
+    || process.env.POSTGRES_URL
+    || process.env.DATABASE_URL_UNPOOLED
+    || process.env.POSTGRES_URL_NON_POOLING
+  if (!connectionString) {
+    const error = new Error('Neon is not connected. Add DATABASE_URL to this Vercel project and redeploy.')
+    error.code = 'DATABASE_NOT_CONFIGURED'
+    throw error
+  }
+  pool = new Pool({ connectionString })
+  return pool
+}
+
 export function ensureSchema() {
-  schemaReady ||= pool.query(`
-    CREATE TABLE IF NOT EXISTS app_resources (
+  const db = getPool()
+  schemaReady ||= (async () => {
+    await db.query(`CREATE TABLE IF NOT EXISTS app_resources (
       resource text NOT NULL,
       item_key text NOT NULL,
       position integer NOT NULL,
       value jsonb NOT NULL,
       PRIMARY KEY (resource, item_key)
-    );
-    CREATE INDEX IF NOT EXISTS app_resources_order_idx
-      ON app_resources (resource, position);
-    CREATE TABLE IF NOT EXISTS app_snapshots (
+    )`)
+    await db.query(`CREATE INDEX IF NOT EXISTS app_resources_order_idx
+      ON app_resources (resource, position)`)
+    await db.query(`CREATE TABLE IF NOT EXISTS app_snapshots (
       snapshot_date date PRIMARY KEY,
       state jsonb NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now()
-    );
-  `)
+    )`)
+  })().catch((error) => {
+    schemaReady = undefined
+    throw error
+  })
   return schemaReady
 }
 
@@ -48,7 +64,7 @@ async function readWith(client) {
 
 export async function readState(defaultState) {
   await ensureSchema()
-  const state = await readWith(pool)
+  const state = await readWith(getPool())
   if (state.players.length || state.matches.length || state.videos.length || state.photos.length || state.slots.length) return state
   await writeState(defaultState)
   return defaultState
@@ -56,7 +72,7 @@ export async function readState(defaultState) {
 
 export async function writeState(state) {
   await ensureSchema()
-  const client = await pool.connect()
+  const client = await getPool().connect()
   try {
     await client.query('BEGIN')
     await client.query(`SELECT pg_advisory_xact_lock(684276491)`)
@@ -80,12 +96,12 @@ export async function writeState(state) {
 
 export async function snapshotState(state) {
   await ensureSchema()
-  await pool.query(
+  await getPool().query(
     `INSERT INTO app_snapshots (snapshot_date, state) VALUES (CURRENT_DATE, $1::jsonb)
      ON CONFLICT (snapshot_date) DO NOTHING`,
     [JSON.stringify(state)]
   )
-  await pool.query(`
+  await getPool().query(`
     DELETE FROM app_snapshots
     WHERE snapshot_date NOT IN (
       SELECT snapshot_date FROM app_snapshots ORDER BY snapshot_date DESC LIMIT 3
@@ -95,7 +111,7 @@ export async function snapshotState(state) {
 
 export async function listSnapshots() {
   await ensureSchema()
-  const { rows } = await pool.query(
+  const { rows } = await getPool().query(
     `SELECT snapshot_date::text AS ts, state FROM app_snapshots ORDER BY snapshot_date DESC LIMIT 3`
   )
   return rows
@@ -103,12 +119,14 @@ export async function listSnapshots() {
 
 export async function getSnapshot(date) {
   await ensureSchema()
-  const { rows } = await pool.query(
+  const { rows } = await getPool().query(
     `SELECT state FROM app_snapshots WHERE snapshot_date = $1::date`, [date]
   )
   return rows[0]?.state
 }
 
 export async function closePool() {
-  await pool.end()
+  if (pool) await pool.end()
+  pool = undefined
+  schemaReady = undefined
 }

@@ -23,6 +23,7 @@ export default function App() {
   const [profilePlayer, setProfilePlayer] = useState(null)
   const [profileFrom, setProfileFrom] = useState('dashboard')
   const [data, setData] = useState(null)
+  const [loadError, setLoadError] = useState(null)
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState(null)
   const [adminName, setAdminName] = useState(() => localStorage.getItem('adminName') || null)
@@ -30,7 +31,12 @@ export default function App() {
   const [versionsOpen, setVersionsOpen] = useState(false)
   const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark')
 
-  useEffect(() => { api.getState().then(setData) }, [])
+  const loadState = () => {
+    setLoadError(null)
+    api.getState().then(setData).catch((error) => setLoadError(error.message))
+  }
+
+  useEffect(loadState, [])
 
   useEffect(() => {
     if (!toast) return
@@ -85,6 +91,18 @@ export default function App() {
     setAdminName(null)
     localStorage.removeItem('adminName')
     setToast({ type: 'success', message: 'Logged out' })
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-6 dark:bg-slate-900">
+        <div className="max-w-md rounded-2xl bg-white p-6 text-center shadow-lg dark:bg-slate-800">
+          <h1 className="text-lg font-bold text-slate-900 dark:text-white">Unable to load data</h1>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{loadError}</p>
+          <button onClick={loadState} className="mt-4 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white">Try again</button>
+        </div>
+      </div>
+    )
   }
 
   if (!data) {

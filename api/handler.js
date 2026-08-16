@@ -252,6 +252,7 @@ export default async function handler(req, res) {
 
     return res.status(404).json({ error: 'Not found' })
   } catch (err) {
-    return res.status(500).json({ error: err.message || String(err) })
+    const status = err.code === 'DATABASE_NOT_CONFIGURED' ? 503 : 500
+    return res.status(status).json({ error: err.message || String(err), code: err.code || 'INTERNAL_ERROR' })
   }
 }
