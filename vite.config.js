@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
         // Local development intentionally uses the deployed Neon-backed API so
         // it reads and writes the same real data as the new production project.
         '/api': {
-          target: env.LOCAL_API_TARGET || 'https://gnrsmashstats-kohl.vercel.app',
+          target: env.LOCAL_API_TARGET || 'https://gnrsmashstat.vercel.app',
           changeOrigin: true,
           secure: true,
         },

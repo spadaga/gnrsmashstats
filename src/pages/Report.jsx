@@ -81,7 +81,7 @@ function MatchRow({ m }) {
           {m.team1.join(' & ')}
         </span>
         <span className="font-bold shrink-0 bg-slate-50 dark:bg-slate-700 rounded px-1.5 py-0.5">
-          <span className={team1Won ? 'text-orange-600' : ''}>{m.score1}</span>-<span className={!team1Won ? 'text-orange-600' : ''}>{m.score2}</span>
+          <span className={team1Won ? 'text-orange-600' : 'text-slate-500 dark:text-slate-400'}>{m.score1}</span>-<span className={!team1Won ? 'text-orange-600' : 'text-slate-500 dark:text-slate-400'}>{m.score2}</span>
         </span>
         <span className={`flex-1 ${!team1Won ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}>
           {m.team2.join(' & ')}

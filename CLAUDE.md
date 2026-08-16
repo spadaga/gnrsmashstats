@@ -8,7 +8,7 @@ React + Vite + Tailwind v4 frontend with one Neon Postgres-backed API contract.
 - **Photo binaries only** remain in Vercel Blob. Postgres stores each photo's
   `{ id, dataUrl }` metadata; `dataUrl` is the public Blob URL after upload.
 - **Local development** intentionally proxies `/api/*` to
-  `https://gnrsmashstats-kohl.vercel.app` through `vite.config.js`. It therefore
+  `https://gnrsmashstat.vercel.app` through `vite.config.js`. It therefore
   reads and writes the same real Neon data as the new production project. The old
   `server/apiPlugin.js` and `data/*.json` implementation remains in the repository
   only as legacy/reference code and is no longer registered by Vite.
@@ -17,10 +17,14 @@ React + Vite + Tailwind v4 frontend with one Neon Postgres-backed API contract.
 
 - Repository: `https://github.com/spadaga/gnrsmashstats` (plural).
 - Active deployment branch: `migration/neon-postgres`.
-- Vercel project/deployment: `gnrsmashstats` / `https://gnrsmashstats-kohl.vercel.app`.
+- Vercel project/deployment: `gnrsmashstats` / `https://gnrsmashstat.vercel.app` (renamed from
+  `gnrsmashstats-kohl.vercel.app` once the original project below vacated the shorter name).
 - This is separate from the original `spadaga/gnrsmashstat` repository, its
-  branches, Vercel project, Blob-backed production deployment, and live site.
-  Do not point this checkout at, push to, or deploy over the original project.
+  branches, Vercel project, Blob-backed production deployment, and live site
+  (now at `https://gnrsmashstatold.vercel.app`). **The naming is easy to
+  confuse — this project's domain has no "old" suffix; the original
+  project's does.** Do not point this checkout at, push to, or deploy over
+  the original project.
 - Migration implementation commits: `c1b3f0c` (Neon backend), `ac793ec`
   (portable dependencies), `c1cdc13` (safe DB configuration errors), `f4ff0f4`
   (Node/native bindings), and `dfddba5` (real-data local proxy and Blob URL import).
@@ -506,8 +510,9 @@ Responds to period filter. Both numbers are clickable:
 - **Total Players** opens a small local `PlayersModal` listing every player (avatar + name).
 
 ### `src/components/TopSeeds.jsx`
-Top pair(s) by win rate (`computeTopPairs`), scoped via **Today / This Week / This Month / This Year /
-Overall** pills (`filterByPeriod`) — independent of the Dashboard's FilterBar period, always receives full
+Top pair(s) by win rate (`computeTopPairs`), scoped via **Today / Week / Month / Year / Overall** pills
+(`filterByPeriod`; labels shortened from "This Week"/"This Month"/"This Year" to fit one line on narrow
+screens without wrapping) — independent of the Dashboard's FilterBar period, always receives full
 `data.matches`. Defaults to **Overall**. Seed #1 = orange card.
 **Seed #2 card is hidden on mobile** (`hidden sm:block`) — only Top Seed #1 shows below the `sm` breakpoint.
 - **Same qualify rule as `Leaderboard`**: `minMatches = period === 'today' ? 1 : 3` passed to
@@ -596,8 +601,9 @@ Video max 20, photos max 50.
 Auto-advances every 4 s. Orange active dot.
 
 ### `src/components/FilterBar.jsx`
-Period pills: **Today / This Week / This Month / This Year / Overall** (`all`, the default in
-`Dashboard.jsx`'s `useState`, is now labeled "Overall" rather than "All Time").
+Period pills: **Today / Week / Month / Year / Overall** (`all`, the default in `Dashboard.jsx`'s
+`useState`, is labeled "Overall" rather than "All Time"; the Week/Month/Year labels were shortened from
+"This Week"/"This Month"/"This Year" to keep the pill row on one line on narrow screens).
 Import + Export visible to the **super admin only** (`isAdmin` prop fed `isSuperAdmin` from `Dashboard.jsx`).
 
 ### `src/components/MatchesModal.jsx`
@@ -608,7 +614,11 @@ fixed-size score badge — the same alignment pattern as `MatchList`/`Report`'s 
 score badge at a consistent horizontal position across every row regardless of how long either team's
 names are (an earlier single-line-text version let the score drift row to row since it sized to content
 instead of splitting the row into equal columns — "zig-zag," not a professional scoreboard look). Same
-abandoned-match amber highlight/badge and comment display as `MatchList`. Used by `StatCards` (Total
+abandoned-match amber highlight/badge and comment display as `MatchList`. The losing side's score number
+has an explicit `text-slate-500 dark:text-slate-400` color (previously an empty class, relying on
+inherited color — fixed after it read as invisible/too-light in light theme); same fix applied to the
+score numbers in `Report.jsx`'s and `PlayerProfile.jsx`'s own `MatchRow` components, which had the same
+empty-class pattern. Used by `StatCards` (Total
 Matches), `TopSeeds` (each Top Seed card), `Leaderboard` (each row's win-rate/rank side), and
 `PlayerProfile` (every stat tile and Activity Breakdown card) so every "click a number, see its matches"
 drill-down outside the Report page looks and behaves the same. Report's own drill-downs keep using their
@@ -632,7 +642,7 @@ everything from the same `data` App.jsx already has in memory.
   the player appears in (not gated by the 4-game qualify rule — these are raw totals, not a rank). Each
   is clickable, opening `MatchesModal` with the matching subset (all / wins-only / losses-only / all again
   for Win Rate).
-- **Activity Breakdown**: Today / This Week / This Month / This Year cards, each with played/W/L **and
+- **Activity Breakdown**: Today / Week / Month / Year cards, each with played/W/L **and
   win%** for that period alone (`filterByPeriod` + a local `recordFor()` tally, which now also returns
   `winRate`). Each card is clickable too — opens `MatchesModal` with that player's matches in that
   specific period (`matchesForPlayer` + `filterByPeriod`).

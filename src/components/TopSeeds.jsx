@@ -5,9 +5,9 @@ import MatchesModal from './MatchesModal'
 
 const PERIODS = [
   { key: 'today', label: 'Today' },
-  { key: 'week',  label: 'This Week' },
-  { key: 'month', label: 'This Month' },
-  { key: 'year',  label: 'This Year' },
+  { key: 'week',  label: 'Week' },
+  { key: 'month', label: 'Month' },
+  { key: 'year',  label: 'Year' },
   { key: 'all',   label: 'Overall' },
 ]
 

@@ -22,9 +22,9 @@ function wonFor(m, name) {
 
 const PERIOD_CARDS = [
   { key: 'today', label: 'Today' },
-  { key: 'week',  label: 'This Week' },
-  { key: 'month', label: 'This Month' },
-  { key: 'year',  label: 'This Year' },
+  { key: 'week',  label: 'Week' },
+  { key: 'month', label: 'Month' },
+  { key: 'year',  label: 'Year' },
 ]
 
 function recordFor(matches, name) {
@@ -78,7 +78,7 @@ function MatchRow({ m, name }) {
         <span className="text-slate-400 dark:text-slate-500 w-16 shrink-0">{m.date}</span>
         <span className={`flex-1 text-right ${team1Won ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}>{m.team1.join(' & ')}</span>
         <span className="font-bold shrink-0 bg-white dark:bg-slate-700 rounded px-1.5 py-0.5">
-          <span className={team1Won ? 'text-orange-600' : ''}>{m.score1}</span>-<span className={!team1Won ? 'text-orange-600' : ''}>{m.score2}</span>
+          <span className={team1Won ? 'text-orange-600' : 'text-slate-500 dark:text-slate-400'}>{m.score1}</span>-<span className={!team1Won ? 'text-orange-600' : 'text-slate-500 dark:text-slate-400'}>{m.score2}</span>
         </span>
         <span className={`flex-1 ${!team1Won ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}>{m.team2.join(' & ')}</span>
         <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${won ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400'}`}>
