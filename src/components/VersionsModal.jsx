@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react'
 import { Clock, RotateCcw, X } from 'lucide-react'
 import * as api from '../lib/api'
 import ConfirmDialog from './ConfirmDialog'
+import { localISODate } from '../lib/date'
 
 function formatTs(ts) {
   const dateStr = ts.slice(0, 10)
-  const today = new Date().toISOString().slice(0, 10)
-  const d = new Date(today)
-  d.setDate(d.getDate() - 1); const yesterday = d.toISOString().slice(0, 10)
-  d.setDate(d.getDate() - 1); const dayBefore = d.toISOString().slice(0, 10)
+  const now = new Date()
+  const today = localISODate(now)
+  const d = new Date(now)
+  d.setDate(d.getDate() - 1); const yesterday = localISODate(d)
+  d.setDate(d.getDate() - 1); const dayBefore = localISODate(d)
   if (dateStr === today) return 'Today'
   if (dateStr === yesterday) return 'Yesterday'
   if (dateStr === dayBefore) return 'Day Before Yesterday'

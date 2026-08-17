@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import PlayerPicker from './PlayerPicker'
 import ConfirmDialog from './ConfirmDialog'
+import { localISODate } from '../lib/date'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => localISODate()
 const MAX_SCORE = 30
 
 const empty = () => ({ date: today(), p1: '', p2: '', p3: '', p4: '', score1: '', score2: '', comment: '' })

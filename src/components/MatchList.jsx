@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, Loader2, Pencil, Save, Search, Swords, Trophy, Trash2, X } from 'lucide-react'
 import ConfirmDialog from './ConfirmDialog'
 import { isAbandoned } from '../lib/ranking'
+import { localISODate } from '../lib/date'
 
 const MODES = [
   { key: 'today', label: 'Today' },
@@ -9,7 +10,7 @@ const MODES = [
   { key: 'all',   label: 'All Matches' },
 ]
 
-const todayISO = () => new Date().toISOString().slice(0, 10)
+const todayISO = () => localISODate()
 
 function formatDateHeader(iso) {
   if (iso === todayISO()) {

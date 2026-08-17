@@ -1,3 +1,5 @@
+import { localISODate } from './date'
+
 // Minimum matches a player needs before Win% ranking applies.
 const MIN_RANKED_MATCHES = 4
 
@@ -162,7 +164,7 @@ export function filterByPeriod(matches, period) {
   if (period === 'all') return matches
   const now = new Date()
   if (period === 'today') {
-    const todayStr = now.toISOString().slice(0, 10)
+    const todayStr = localISODate(now)
     return matches.filter((m) => m.date === todayStr)
   }
   return matches.filter((m) => {
