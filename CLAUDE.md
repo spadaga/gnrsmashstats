@@ -60,14 +60,14 @@ The `players` resource stored in Postgres is an ordered array of objects:
 
 ```json
 [
-  { "name": "Sanjeev Kumar",    "pin": "2682" },
-  { "name": "Abdhulla",         "pin": "0492" },
-  { "name": "Srinivas Padaga",  "pin": "0556" },
-  { "name": "Suresh Padaga",    "pin": "2669" },
-  { "name": "HR",               "pin": "8220" },
-  { "name": "Narendra",         "pin": "1484" },
-  { "name": "Manikyam",         "pin": "7158" },
-  { "name": "Diwakar",          "pin": "8610" }
+  { "name": "Sanjeev Kumar", "pin": "2682" },
+  { "name": "Abdhulla", "pin": "0492" },
+  { "name": "Srinivas Padaga", "pin": "0556" },
+  { "name": "Suresh Padaga", "pin": "2669" },
+  { "name": "HR", "pin": "8220" },
+  { "name": "Narendra", "pin": "1484" },
+  { "name": "Manikyam", "pin": "7158" },
+  { "name": "Diwakar", "pin": "8610" }
 ]
 ```
 
@@ -78,7 +78,7 @@ The `players` resource stored in Postgres is an ordered array of objects:
 - PIN = last 4 digits of mobile number.
 - Old string-array format auto-migrates to objects on first read.
 - Optional `role` field: `'admin'` promotes a player to show the **Admin** badge on `Players.jsx` and
-  their `PlayerProfile`; anything else (including absent) shows **Contributor**. This is a *display*
+  their `PlayerProfile`; anything else (including absent) shows **Contributor**. This is a _display_
   badge only — it does **not** grant write access or change login behavior, both of which stay governed
   by `pin` (can log in / log today's matches) and by being the fixed super admin (full write access, see
   `SUPER_ADMIN_NAME` below). Only the super admin can change another player's `role`, via a "Make Admin" /
@@ -124,6 +124,7 @@ The `players` resource stored in Postgres is an ordered array of objects:
   need `SUPER_ADMIN_NAME` updated to match (same caveat the old PIN-based check had, just moved).
 
 `src/lib/admins.js` helpers:
+
 - `SUPER_ADMIN_NAME` — the one player name with full write access (`'Suresh Padaga'`). Imported by
   `App.jsx` (for `isSuperAdmin`) and by `Players.jsx`/`PlayerProfile.jsx` (to always show his badge as
   Admin, un-editable, regardless of the `role` field).
@@ -142,6 +143,7 @@ The `players` resource stored in Postgres is an ordered array of objects:
 ## Version history
 
 Snapshot-enabled mutations save history (last **3** kept, **one per calendar day**):
+
 - **Local and production**: Neon table `app_snapshots`, keyed by
   `snapshot_date`. Local uses the production API, so there is only one history.
 
@@ -149,10 +151,14 @@ The snapshot captures the **pre-mutation state** on the **first write of each da
 Subsequent writes that day skip snapshotting (start-of-day state is preserved for recovery).
 
 How to check versions:
+
 ```js
 // In browser console:
-fetch('/api/versions').then(r => r.json()).then(console.log)
+fetch("/api/versions")
+  .then((r) => r.json())
+  .then(console.log);
 ```
+
 To restore: `POST /api/restore/:date` (date is `YYYY-MM-DD`)
 The `VersionsModal` is wired into Header (desktop: History button; mobile: hamburger menu). Labels: Today / Yesterday / Day Before Yesterday.
 
@@ -176,8 +182,8 @@ item_key, position, value jsonb)` generic-table design was replaced — see
   historical matches, exactly like the old behavior, but via a real foreign
   key instead of a name string baked into every match.
 - `matches(id uuid PK, team1_player1_id, team1_player2_id, team2_player1_id,
-  team2_player2_id → players.id, score1, score2, match_date, comment,
-  logged_at, seq)`. Four fixed FK columns (not a join table) match the actual
+team2_player2_id → players.id, score1, score2, match_date, comment,
+logged_at, seq)`. Four fixed FK columns (not a join table) match the actual
   invariant `MatchForm.jsx` enforces: always exactly 2 vs 2, all 4 unique.
   Because matches reference players by `id`, **renaming a player is a single
   `UPDATE players SET name = ...` — there is no cascade into match history
@@ -187,7 +193,7 @@ item_key, position, value jsonb)` generic-table design was replaced — see
   `PUT /api/players/:name` below).
 - `videos(id bigserial PK, url)`, `photos(id uuid PK, data_url, seq)`,
   `slots(id uuid PK, name, time, end_date, seq)`, `dues(id uuid PK, name,
-  count, comment, seq)` — party-due entries (`count` is a plain occurrence
+count, comment, seq)` — party-due entries (`count` is a plain occurrence
   count, not a currency amount), read by everyone, written super-admin-only
   via the Report page's Party Dues tab.
 - `id`/`seq` columns are `bigserial`, giving stable insertion order for free —
@@ -245,29 +251,29 @@ or Vercel will report `FUNCTION_INVOCATION_FAILED`.
 
 ## API routes
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/state` | Full app state |
-| POST | `/api/players` | Add player `{ name, pin? }` |
-| PUT | `/api/players/:name` | Update player name/pin/photo/role |
-| DELETE | `/api/players/:name` | Remove player |
-| POST | `/api/matches` | Add match |
-| PUT | `/api/matches/:id` | Update match score/comment |
-| DELETE | `/api/matches/:id` | Delete match |
-| POST | `/api/videos` | Add YouTube URL (max 20) |
-| DELETE | `/api/videos/:index` | Remove video |
-| POST | `/api/photos` | Upload photo as base64 dataUrl (max 50) |
-| DELETE | `/api/photos/:id` | Delete photo |
-| POST | `/api/slots` | Add court slot |
-| PUT | `/api/slots/:id` | Update slot |
-| DELETE | `/api/slots/:id` | Delete slot |
-| POST | `/api/dues` | Add party-due entry `{ name, count, comment? }` |
-| PUT | `/api/dues/:id` | Update a due entry |
-| DELETE | `/api/dues/:id` | Delete a due entry |
-| GET | `/api/export` | Download full JSON snapshot |
-| POST | `/api/import` | Restore full snapshot |
-| GET | `/api/versions` | List last 3 daily snapshots |
-| POST | `/api/restore/:ts` | Restore a snapshot |
+| Method | Path                 | Description                                     |
+| ------ | -------------------- | ----------------------------------------------- |
+| GET    | `/api/state`         | Full app state                                  |
+| POST   | `/api/players`       | Add player `{ name, pin? }`                     |
+| PUT    | `/api/players/:name` | Update player name/pin/photo/role               |
+| DELETE | `/api/players/:name` | Remove player                                   |
+| POST   | `/api/matches`       | Add match                                       |
+| PUT    | `/api/matches/:id`   | Update match score/comment                      |
+| DELETE | `/api/matches/:id`   | Delete match                                    |
+| POST   | `/api/videos`        | Add YouTube URL (max 20)                        |
+| DELETE | `/api/videos/:index` | Remove video                                    |
+| POST   | `/api/photos`        | Upload photo as base64 dataUrl (max 50)         |
+| DELETE | `/api/photos/:id`    | Delete photo                                    |
+| POST   | `/api/slots`         | Add court slot                                  |
+| PUT    | `/api/slots/:id`     | Update slot                                     |
+| DELETE | `/api/slots/:id`     | Delete slot                                     |
+| POST   | `/api/dues`          | Add party-due entry `{ name, count, comment? }` |
+| PUT    | `/api/dues/:id`      | Update a due entry                              |
+| DELETE | `/api/dues/:id`      | Delete a due entry                              |
+| GET    | `/api/export`        | Download full JSON snapshot                     |
+| POST   | `/api/import`        | Restore full snapshot                           |
+| GET    | `/api/versions`      | List last 3 daily snapshots                     |
+| POST   | `/api/restore/:ts`   | Restore a snapshot                              |
 
 ## Vercel and migration setup
 
@@ -289,6 +295,7 @@ Blob objects during a full import, preventing damage to the original store.
 ## Ranking
 
 `src/lib/ranking.js`:
+
 - `isGuestName(name)` — `true` for a one-off player name like `Guest1`/`Guest 2` (regex
   `/^guest\s*\d*$/i`). There's no DB flag for this, just the naming convention. `computeStats` skips
   guest names when seeding from `players` and when discovering names from matches (a real player's W/L
@@ -296,15 +303,17 @@ Blob objects during a full import, preventing damage to the original store.
   member is a guest. This is how a pair like "Guest1 & Sepuri" gets excluded from every
   ranking/leaderboard display while still showing normally in match lists/history (`MatchList`,
   `MatchesModal`, etc. show every match regardless of guest involvement — only rankings filter them out).
-- `computeStats(matches, players, minMatches = 4)` — wins/losses/pointDiff/winRate/played, plus
-  `qualified: boolean`. Players with `played >= minMatches` are "qualified" and sorted Win% → Wins →
-  fewer Losses; players below that (but > 0 played) are sorted the same way but always listed below
-  qualified players; 0 played = unranked, listed last. `minMatches` defaults to 4 for `Report.jsx`'s
-  Individual Rankings and `PlayerProfile`'s overall win-rate line; `Leaderboard`/`TopSeeds` pass `3` for
-  every period except Today — see their sections below.
-- `computeRanks(rows)` — standard competition ranking (1-2-2-4): rows tied on `winRate` share a rank, the
-  next distinct rank skips the tied count. Works unmodified against `computeStats` or `computeTopPairs`
-  output. Shared by `Leaderboard` (singles + doubles) and `PlayerProfile`'s per-period "Your Ranking" card.
+- `computeStats(matches, players, minMatches = 4)` — wins/losses/pointDiff/winRate/played, plus a
+  `score` and `qualified: boolean`. Ranking is now based on the **Wilson Score Interval**, a
+  statistical method that provides a confidence-adjusted win rate, rewarding consistent performers with
+  larger sample sizes over lucky outliers. Players are sorted by this score. Players with `played >=
+minMatches` are "qualified"; players below that are sorted the same way but always listed below qualified
+  players. `minMatches` defaults to 4 for `Report.jsx`'s Individual Rankings and `PlayerProfile`'s overall
+  win-rate line; `Leaderboard`/`TopSeeds` pass `3` for most periods.
+- `computeRanks(rows)` — standard competition ranking (1-2-2-4): rows tied on their Wilson `score` share
+  a rank, and the next distinct rank skips the tied count. Works unmodified against `computeStats` or
+  `computeTopPairs` output. Shared by `Leaderboard` (singles + doubles) and `PlayerProfile`'s per-period
+  "Your Ranking" card.
 - `applyPeriod(matches, period, from, to)` — like `filterByPeriod` but also supports an explicit
   `'custom'` from/to date range. Backs the period-tab UI (`PeriodTabs`, exported from `Report.jsx`) shared
   by `Report.jsx`'s Individual/Pair Rankings tabs and `PlayerProfile`'s "Your Ranking" card.
@@ -324,20 +333,20 @@ Blob objects during a full import, preventing damage to the original store.
   actual array of matches behind that count, so the UI can show "what made up this number" on click.
   Used by the Report page's Duo Head-to-Head tab.
 - `computeHeadToHead(matches, a, b)` — **individual, any-partner** head-to-head: how `a` and `b` fare when
-  directly *opposing* each other on a match, regardless of who else is on either side. Returns
+  directly _opposing_ each other on a match, regardless of who else is on either side. Returns
   `{ aWins, bWins, played, matches: { aWins, bWins } }` (again with the backing match arrays). This is
   distinct from `computeDuoStats`' `aWithoutBWins`, which is `a`'s overall record without `b` as a
   teammate — `b` might not even be in that match. Used by the Report page's Duo Head-to-Head tab
   alongside `computeDuoStats` (teammate stats and any-partner opponent stats are shown together, not
   as alternatives).
-- `computeTopPairs(matches, minMatches = 4)` — pair ranking for `TopSeeds` **and** `Leaderboard`'s Doubles
-  tab: win rate → wins → fewer losses, with the same configurable qualify rule as `computeStats` (pairs
-  below `minMatches` games are listed after qualified ones). Both `TopSeeds` and `Leaderboard` pass `1`
-  only for the Today period, and the default 4 for every other period (Week/Month/Year/Overall) — see
-  their sections below. Each entry carries a `qualified: boolean` just like `computeStats`, so the same
-  1-2-2-4 tie-aware rank computation works unmodified against either. `computePairStats` sorts by raw win
-  count instead and has no qualify gate — kept as-is for `Report.jsx`'s wins-based Pair Rankings/Player
-  Combos tabs.
+- `computeTopPairs(matches, minMatches = 4)` — pair ranking for `TopSeeds` and `Leaderboard`'s Doubles tab.
+  Ranking is now based on the **Wilson Score Interval**, providing a more statistically robust score than
+  simple win rate. Pairs are sorted by this score. Pairs below `minMatches` games are listed after
+  qualified ones. Both `TopSeeds` and `Leaderboard` pass `1` only for the Sunday period, and `3` for
+  every other period (Week/Month/Year/Overall). Each entry carries a `qualified: boolean` just like
+  `computeStats`, so the same 1-2-2-4 tie-aware rank computation works unmodified against either.
+  `computePairStats` sorts by raw win count instead and has no qualify gate — kept as-is for `Report.jsx`'s
+  wins-based Pair Rankings/Player Combos tabs.
 - `matchesForPlayer(matches, name)` / `matchesForPair(matches, [a, b])` — filter a match list down to the
   ones a given player (either team) or pair (both on the same team, either side) actually appears in. Used
   throughout `Report.jsx` to drill down from a ranking row/stat tile to the matches behind that number.
@@ -375,11 +384,13 @@ Blob objects during a full import, preventing damage to the original store.
 ## Structure
 
 ### `src/App.jsx`
+
 Router (dashboard / log / players / slots / report / **profile**). Reads `localStorage.adminName` on
 mount to restore session. Reads `localStorage.theme` and applies `dark` class to
 `<html>` before render. `toggleDark()` flips class + saves preference.
 All 16 actions go through `withFeedback()` → full-screen transparent overlay +
 toast on settle.
+
 - **`viewProfile(name)`**: scrolls the window to the top (`window.scrollTo({top:0,behavior:'instant'})` —
   otherwise the profile page could render mid-scroll-position from whatever page it was opened from),
   remembers the current page as `profileFrom`, sets `profilePlayer`, and navigates to `page: 'profile'`.
@@ -396,29 +407,36 @@ toast on settle.
   infrastructure — plain polling is enough at this app's scale.
 
 ### `src/components/Header.jsx`
+
 Logo + wordmark + nav pills: Dashboard / Log Match (admin only) / Players / Court Slots / Report.
 Moon/Sun theme toggle. Admin Login button (guests) / name badge + Logout (admins).
 
 ### `src/components/LoginModal.jsx`
+
 PIN-first: type 4 digits → `findAdminByPin()` → name + ✅ → auto-login 700 ms.
 
 ### `src/components/ConfirmDialog.jsx`
+
 Modal confirmation (Trash / AlertTriangle icon). Replaces all `window.confirm`.
 
 ### `src/components/VersionsModal.jsx`
+
 Admin-only modal. Lists the last 3 daily snapshots with date, match/player count,
 Latest badge, Restore button. Restore triggers ConfirmDialog then `POST /api/restore/:ts`.
 
 ### `src/components/SlotsTicker.jsx`
+
 Horizontal auto-scrolling ticker strip on the Dashboard showing court slot names
 and days remaining. Items duplicate for seamless loop (`animate-ticker` CSS keyframes).
 Red badge if < 10 days. Pauses on hover. Hidden if no slots.
 Compact sizing: `py-1` strip height, `text-xs` slot name, `text-[10px]` days badge.
 
 ### `src/components/Footer.jsx`
+
 Sticky footer: `© {year} GNR SmashStats. All rights reserved. | 🏸 GNR Team · {today}`.
 
 ### `src/pages/Dashboard.jsx`
+
 SlotsTicker → FilterBar → StatCards → TopSeeds → [Leaderboard | MatchList] → [VideoSection | PhotoGallery].
 `Leaderboard` gets raw `data.matches`/`data.players` (not pre-filtered) — it owns its own period tabs,
 independent of the FilterBar period which only drives StatCards context (`TopSeeds` also owns its own
@@ -426,17 +444,20 @@ period tabs independently, same as `Leaderboard`). Forwards `photoByName` and `o
 `Leaderboard`.
 
 ### `src/pages/LogMatch.jsx`
+
 Wraps `MatchForm.jsx`, navigates back to Dashboard on save.
 
 ### `src/pages/Report.jsx`
+
 Analytics page (nav: Report), mostly read-only. 6 tabs; the first 4 each have a bar chart (plain
 div-width bars, no chart lib) + text list. Exports `PeriodTabs` (takes an optional `periods` prop,
 defaulting to this file's own Day/Week/Month/Year/Custom Range set) as a named export alongside the
 default `Report` component, so `PlayerProfile.jsx` can reuse the same period-tab UI with its own period
 list — `applyPeriod` itself lives in `ranking.js`, not here, so this file's exports stay component-only
 (mixing a plain utility function in here trips the react-refresh `only-export-components` lint rule).
+
 - **Duo Head-to-Head**: pick players A & B → two stacked sub-sections:
-  - **As Teammates** (`computeDuoStats`): wins together, losses with B, and A's wins *without* B as partner.
+  - **As Teammates** (`computeDuoStats`): wins together, losses with B, and A's wins _without_ B as partner.
   - **Head-to-Head — any partner** (`computeHeadToHead`): A's wins vs B and B's wins vs A when they were
     directly opposing each other, regardless of who else was on either team — plus a "leads X–Y" / "tied"
     summary line. Hidden (replaced by a "haven't faced each other" message) if they've never been direct
@@ -470,10 +491,12 @@ list — `applyPeriod` itself lives in `ranking.js`, not here, so this file's ex
   No period filter or drill-down, just the flat list.
 
 ### `src/pages/Players.jsx`
+
 Add/remove/edit players — **super admin only** (`isAdmin` prop here is fed `isSuperAdmin` from `App.jsx`,
 not plain `isAdmin`). Regular admins and guests get the read-only list. Each row shows an `Avatar` via
 `PlayerAvatarPicker` — super-admin only for the hover upload/clear overlay, see Player avatars above;
 everyone else just sees the plain avatar/initials circle.
+
 - **Role badge**: `SUPER_ADMIN_NAME` (Suresh Padaga) always shows **Admin**; every other player shows
   **Admin** only if `p.role === 'admin'`, otherwise **Contributor** — regardless of whether they have a
   `pin` (having a pin only controls login/regular-admin-for-today capability, not this badge).
@@ -485,11 +508,13 @@ everyone else just sees the plain avatar/initials circle.
   `onViewProfile(playerName)`, navigating to `PlayerProfile`.
 
 ### `src/pages/Slots.jsx`
+
 Court slots table. **Super admin only**: inline editable cells + add/delete. Everyone else: read-only.
 Rows within 10 days of `endDate` highlight red. Sorted by `endDate` ascending.
 **Time column hidden on mobile** (`hidden sm:table-cell`) to save width; visible from `sm` breakpoint up.
 
 ### `src/components/MatchForm.jsx`
+
 **`PlayerPicker` dropdowns** (avatar + name, not free text or a plain `<select>`) for all 4 players
 sourced from the players list — see Player avatars above. Each dropdown filters out already-selected
 players so all 4 are always unique. Scores: 0–30, no ties. Comment optional.
@@ -504,41 +529,47 @@ date being submitted. If so, shows a `ConfirmDialog` ("Log it anyway?") instead 
 the day.
 
 ### `src/components/StatCards.jsx`
+
 Single orange card showing **Total Matches** and **Total Players** side by side (divider between).
 Responds to period filter. Both numbers are clickable:
+
 - **Total Matches** opens `MatchesModal` listing every match in the current filtered period.
 - **Total Players** opens a small local `PlayersModal` listing every player (avatar + name).
 
 ### `src/components/TopSeeds.jsx`
-Top pair(s) by win rate (`computeTopPairs`), scoped via **Today / Week / Month / Year / Overall** pills
-(`filterByPeriod`; labels shortened from "This Week"/"This Month"/"This Year" to fit one line on narrow
-screens without wrapping) — independent of the Dashboard's FilterBar period, always receives full
-`data.matches`. Defaults to **Overall**. Seed #1 = orange card.
+
+Top pair(s) by win rate (`computeTopPairs`), scoped via **Today / Sunday / Week / Month / Year / Overall**
+pills (`filterByPeriod`) — independent of the Dashboard's FilterBar period, always receives full
+`data.matches`. Defaults to **Today**. Seed #1 is an orange card. Labels are shortened on mobile.
 **Seed #2 card is hidden on mobile** (`hidden sm:block`) — only Top Seed #1 shows below the `sm` breakpoint.
-- **Same qualify rule as `Leaderboard`**: `minMatches = period === 'today' ? 1 : 3` passed to
-  `computeTopPairs`, and only `qualified` pairs are shown as a Top Seed — Today ranks any pair that's
-  played at all (a pair can't realistically hit 3 games in one day), every other period needs a 3-game
-  minimum. If no pair qualifies for the selected period, shows a "No qualified pairs…" message instead of
+
+- **Qualify rule**: `minMatches = 3` is passed to `computeTopPairs` for all periods except Sunday
+  (`minMatches = 1`). Only `qualified` pairs are shown as a Top Seed. If no pair qualifies for the
+  selected period, shows a "No qualified pairs…" message instead of
   an empty grid.
 - Each Top Seed card is clickable — opens `MatchesModal` with that pair's matches within the selected
   period (`matchesForPair`).
-"View All →" modal lists all pair combos **across all-time matches** (not scoped to the selected period,
-and not gated by the qualify rule) — button visibility is likewise based on the all-time pair count.
-Dark mode supported.
+  "View All →" modal lists all pair combos **across all-time matches** (not scoped to the selected period,
+  and not gated by the qualify rule) — button visibility is likewise based on the all-time pair count.
+  Dark mode supported.
 
 ### `src/components/Leaderboard.jsx`
-**Two top-level tabs: Singles / Doubles**, each with its own **Today / Weekly / Monthly / Yearly /
-Overall** period pills (`filterByPeriod`), **defaulting to Today**. Receives raw `matches`/`players` plus
-`photoByName` and `onViewProfile` from `Dashboard`, and computes stats internally, independent of the
+
+**Two top-level tabs: Singles / Doubles**, each with its own **Today / Sunday / Weekly / Monthly / Yearly /
+Overall** period pills (`filterByPeriod`), **defaulting to Today**. Labels are shortened on mobile. Receives raw `matches`/`players`
+plus `photoByName` and `onViewProfile` from `Dashboard`, and computes stats internally, independent of the
 Dashboard's FilterBar period.
-- **Qualify rule matches `TopSeeds`**: `minMatches = period === 'today' ? 1 : 3` passed to
-  `computeStats`/`computeTopPairs` — Today ranks everyone/every pair that's played at least once (nothing
-  realistically reaches 3 games in a single day), every other period requires a 3-game minimum before a
-  rank is awarded. Unqualified/no-rank rows show **NA** for rank rather than a bare dash. `computeRanks`
-  is imported from `ranking.js` (moved there so `PlayerProfile.jsx` can share it too), not defined locally.
+
+- **Qualify rule**: `minMatches = 3` is passed to `computeStats`/`computeTopPairs` for all periods except Sunday
+  (`minMatches = 1`). For the Weekly, Monthly, Yearly, and Overall tabs, Sunday matches are excluded, and
+  only players who have played on a weekday (Mon-Sat) within the period are shown. For the Sunday tab,
+  only players who have played on a Sunday are included. For all tabs except "Today", players who have not
+  played any matches in the selected period are hidden. Ranking is consistently based on the Wilson
+  Score. All players are given a numerical rank based on their order, with qualified players sorted
+  before unqualified ones. `computeRanks` is imported from `ranking.js`.
 - **Row layout, identical in every mode/tab and at every breakpoint**: avatar/circle **always** comes
-  first (leftmost), then the name; below the name reads `{wins}W - {losses}L · {played} played ·
-  {winRate}%` — win % lives here now, not on the right. The **right side holds only the rank**: a small
+  first (leftmost), then the name; below the name reads `{wins}W - {losses}L · {played} played · {winRate}% ·
+{score}`. The **right side holds only the rank**: a small
   circular badge (number, or `NA` if unqualified/unranked), orange-filled for rank 1.
 - **Singles**: `computeStats` — one row per player, with an `Avatar` (from `photoByName`). Clicking the
   avatar or name calls `onViewProfile(name)`, opening `PlayerProfile`.
@@ -554,8 +585,9 @@ Dashboard's FilterBar period.
   partial/unranked rows the same way as everywhere else.
 
 ### `src/components/MatchList.jsx`
+
 - **Search box sits above the "Recent Matches" heading.** Input text is bold (`font-bold text-sm
-  text-slate-900 dark:text-white`) so a typed query stands out more than the surrounding UI.
+text-slate-900 dark:text-white`) so a typed query stands out more than the surrounding UI.
 - **Abandoned matches** (`isAbandoned(m)` — winning score under 21, see Ranking above) get a highlighted
   row: thicker amber border + amber tint background, plus an "Abandoned — did not reach 21" badge under
   the score line, in every mode (Today/Head-to-Head/All Matches) — not just Today, so the highlight is
@@ -594,19 +626,23 @@ Dashboard's FilterBar period.
   both ("Match #22 · Overall #126") since those views span multiple dates.
 
 ### `src/components/VideoSection.jsx` / `PhotoGallery.jsx`
+
 Carousel (default) ↔ Manage (**super admin only** — `isAdmin` prop fed `isSuperAdmin` from `Dashboard.jsx`).
 Video max 20, photos max 50.
 
 ### `src/components/Carousel.jsx`
+
 Auto-advances every 4 s. Orange active dot.
 
 ### `src/components/FilterBar.jsx`
+
 Period pills: **Today / Week / Month / Year / Overall** (`all`, the default in `Dashboard.jsx`'s
 `useState`, is labeled "Overall" rather than "All Time"; the Week/Month/Year labels were shortened from
 "This Week"/"This Month"/"This Year" to keep the pill row on one line on narrow screens).
 Import + Export visible to the **super admin only** (`isAdmin` prop fed `isSuperAdmin` from `Dashboard.jsx`).
 
 ### `src/components/MatchesModal.jsx`
+
 Shared "here's what's behind that number" modal — takes `{ title, matches, onClose }`. Groups matches by
 date (newest date first, via `sortMatchesDesc`), one date header (with a match count) per group, and below
 it each match as **team1 · score · team2** using equal-width `flex-1` columns on either side of a
@@ -626,9 +662,11 @@ existing inline `StatTile`/`MatchResultsPanel` pattern rather than this modal, s
 inline under the tile instead of overlaying the page.
 
 ### `src/pages/PlayerProfile.jsx`
+
 A per-player dashboard, reached by clicking a name/avatar in `Leaderboard` (Singles) or `Players.jsx`.
 Takes `{ playerName, players, matches, slots, dues, onBack }` — no fetching of its own, just derives
 everything from the same `data` App.jsx already has in memory.
+
 - **Header card**: large `Avatar`, name, role badge (Admin for `SUPER_ADMIN_NAME` or any player with
   `role === 'admin'`, else Contributor — same logic as `Players.jsx`), and a **"renewal date"**: looked up
   by matching the player's name (case-insensitive) against `slots`' `name` field and showing that slot's
@@ -665,19 +703,39 @@ everything from the same `data` App.jsx already has in memory.
   matches.
 
 ### `src/lib/api.js`
+
 All mutations return updated resource array. `updateMatch(id, updates)` → `PUT /api/matches/:id`.
 `addDue`/`updateDue`/`deleteDue` mirror the slot functions. `getVersions()` / `restoreVersion(ts)` for
 version history.
 
 ### `src/index.css`
+
 ```css
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
-@layer base { *, ::before, ::after { border-color: var(--color-slate-200, #e2e8f0); } }
-@keyframes ticker { 0% { transform: translateX(0) } 100% { transform: translateX(-50%) } }
-.animate-ticker { animation: ticker 30s linear infinite; }
-.animate-ticker:hover { animation-play-state: paused; }
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-slate-200, #e2e8f0);
+  }
+}
+@keyframes ticker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+.animate-ticker {
+  animation: ticker 30s linear infinite;
+}
+.animate-ticker:hover {
+  animation-play-state: paused;
+}
 ```
+
 The `@layer base` rule restores a v3-style default border color for light theme. Tailwind v4 changed the
 default `border` utility color from v3's `gray-200` to `currentColor`, and almost every card in this app
 uses `border dark:border-slate-700` with no explicit light-mode color — so light theme fell back to
@@ -767,4 +825,5 @@ Deployment prerequisites/checks:
   changes untouched throughout the migration.
 
 ---
-*CLAUDE.md is updated with every code change to stay in sync.*
+
+_CLAUDE.md is updated with every code change to stay in sync._
