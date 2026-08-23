@@ -36,29 +36,22 @@ export default function Leaderboard({
   const [period, setPeriod] = useState("today");
   const [drilldown, setDrilldown] = useState(null);
   let filtered = filterByPeriod(matches, period);
-  // Today can't realistically hit 3 games, so it ranks everyone who played at
-  // all; every other period (week/month/year/overall) requires the standard
-  // 3-match qualify rule before a rank is awarded.
   const minMatches = period === "sunday" ? 1 : 3;
 
   let playersForPeriod = players;
   if (period === "today") {
-    // For today, only show players who actually played today.
     playersForPeriod = [
       ...new Set(filtered.flatMap((m) => [...m.team1, ...m.team2])),
     ];
   } else if (["week", "month", "year", "all"].includes(period)) {
-    // For regular leaderboards, exclude Sunday matches from stats.
     filtered = filtered.filter(
       (m) => new Date(`${m.date}T00:00:00`).getDay() !== 0,
     );
-    // And only include players who have played on a weekday in this period.
     const weekdayPlayerNames = new Set(
       filtered.flatMap((m) => [...m.team1, ...m.team2]),
     );
     playersForPeriod = players.filter((p) => weekdayPlayerNames.has(p.name));
   } else if (period === "sunday") {
-    // For the Sunday tab, only include players who have played on a Sunday.
     const sundayPlayerNames = new Set(
       filtered.flatMap((m) => [...m.team1, ...m.team2]),
     );
@@ -80,28 +73,7 @@ export default function Leaderboard({
           <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
             <Medal size={16} className="text-orange-600" /> Leaderboard
           </h2>
-          <Info>
-            <div className="p-2 max-w-xs text-xs text-slate-500 dark:text-slate-400 space-y-2">
-              <p className="font-bold text-slate-700 dark:text-slate-200">
-                How is ranking calculated?
-              </p>
-              <p>
-                Ranking is based on the Wilson Score Interval, a statistical
-                method that provides a confidence-adjusted win rate. It's more
-                reliable than a simple win percentage because it accounts for
-                the number of matches played.
-              </p>
-              <p>
-                Players with more matches and a high win rate will generally
-                rank higher. A minimum number of matches is required to be fully
-                ranked for most periods.
-              </p>
-              <p>
-                For Weekly, Monthly, and Yearly tabs, Sunday matches are
-                excluded from the calculation.
-              </p>
-            </div>
-          </Info>
+          <Info />
         </div>
         <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-full p-1">
           {MODES.map((m) => (
@@ -158,14 +130,14 @@ export default function Leaderboard({
                 {mode === "singles" ? (
                   <Avatar name={s.name} photo={photoByName[s.name]} size="sm" />
                 ) : (
-                  <span className="flex -space-x-2 shrink-0">
+                  <span className="flex items-center gap-1.5 shrink-0">
                     {s.players.map((n) => (
                       <Avatar
                         key={n}
                         name={n}
                         photo={photoByName[n]}
                         size="sm"
-                        className="ring-2 ring-white dark:ring-slate-800"
+                        className="ring-1.5 ring-slate-200 dark:ring-slate-700"
                       />
                     ))}
                   </span>
