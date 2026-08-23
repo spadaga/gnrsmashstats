@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   Loader2,
   Pencil,
-  CirclePlay as YoutubeIcon,
   Search,
   Swords,
   Trophy,
@@ -13,6 +12,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import { formatYoutubeUrl, isAbandoned } from "../lib/ranking";
 import { localISODate } from "../lib/date";
 import MatchEditModal from "./MatchEditModal";
+import YoutubeIcon from "./YoutubeIcon";
 
 const MODES = [
   { key: "today", label: "Today" },
@@ -424,11 +424,10 @@ export default function MatchList({
                             href={formatYoutubeUrl(m.youtubeUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition font-bold text-xs"
-                            title="Watch match video on YouTube"
+                            className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition hover:scale-110 shrink-0"
+                            title="Watch match on YouTube"
                           >
-                            <YoutubeIcon size={15} className="text-red-600 dark:text-red-400 shrink-0" />
-                            <span className="hidden sm:inline">Watch</span>
+                            <YoutubeIcon size={18} />
                           </a>
                         )}
                         {canModify && (

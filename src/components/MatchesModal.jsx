@@ -1,4 +1,5 @@
-import { AlertTriangle, CirclePlay as YoutubeIcon, X } from 'lucide-react'
+import { AlertTriangle, X } from 'lucide-react'
+import YoutubeIcon from './YoutubeIcon'
 import { isAbandoned, sortMatchesDesc } from '../lib/ranking'
 
 // Newest date first; matches within a date keep their relative order (stable

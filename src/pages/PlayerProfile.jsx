@@ -6,8 +6,8 @@ import {
   CreditCard,
   ShieldCheck,
   Trophy,
-  CirclePlay as Youtube,
 } from "lucide-react";
+import YoutubeIcon from "../components/YoutubeIcon";
 import Avatar from "../components/Avatar";
 import MatchesModal from "../components/MatchesModal";
 import { SUPER_ADMIN_NAME } from "../lib/admins";
@@ -180,7 +180,7 @@ function MatchRow({ m, name }) {
             className="shrink-0 text-red-500 hover:text-red-600"
             title="Watch match video"
           >
-            <Youtube size={16} />
+            <YoutubeIcon size={18} />
           </a>
         )}
       </div>
