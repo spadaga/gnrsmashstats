@@ -472,35 +472,7 @@ export default function PlayerProfile({
           <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
             Your Ranking
           </h2>
-          <Info>
-            <div className="p-2 max-w-sm text-xs text-slate-600 dark:text-slate-300 space-y-2.5">
-              <div>
-                <p className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                  Wilson Score Ranking Formula
-                </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Calculates a 95% confidence lower-bound win rate to fairly balance win percentage with sample size.
-                </p>
-              </div>
-
-              <div className="bg-slate-100 dark:bg-slate-900/60 p-2.5 rounded-xl border dark:border-slate-700 font-mono text-[11px] text-orange-600 dark:text-orange-400 text-center font-bold tracking-tight select-all">
-                Score = (p̂ + z²/2n - z√[p̂(1-p̂)/n + z²/4n²]) / (1 + z²/n)
-              </div>
-
-              <div className="grid grid-cols-2 gap-1.5 text-[11px] bg-slate-50 dark:bg-slate-700/40 p-2 rounded-lg border dark:border-slate-700">
-                <div><span className="font-bold text-slate-700 dark:text-slate-200">p̂</span> = wins / played</div>
-                <div><span className="font-bold text-slate-700 dark:text-slate-200">n</span> = matches played</div>
-                <div><span className="font-bold text-slate-700 dark:text-slate-200">z</span> = 1.96 (95% conf.)</div>
-                <div><span className="font-bold text-slate-700 dark:text-slate-200">Range</span> = 0.000 – 1.000</div>
-              </div>
-
-              <div className="space-y-1 text-[11px] text-slate-500 dark:text-slate-400">
-                <p>• <strong className="text-slate-700 dark:text-slate-200">Fairness:</strong> Prevents 1 win in 1 match (100%) from outranking a proven 15W–2L record.</p>
-                <p>• <strong className="text-slate-700 dark:text-slate-200">Sunday Tab:</strong> Ranks players across all Sunday matches.</p>
-                <p>• <strong className="text-slate-700 dark:text-slate-200">Weekday Tabs:</strong> Week, Month, Year & Overall exclude Sunday matches (regular Mon–Sat players only).</p>
-              </div>
-            </div>
-          </Info>
+          <Info />
         </div>
         <PeriodTabs
           period={rankPeriod}

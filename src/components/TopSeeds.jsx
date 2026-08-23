@@ -8,6 +8,7 @@ import {
   matchesForPlayer,
 } from "../lib/ranking";
 import MatchesModal from "./MatchesModal";
+import Info from "./Info";
 
 const PERIODS = [
   { key: "today", label: "Today", shortLabel: "Day" },
@@ -138,9 +139,12 @@ export default function TopSeeds({ matches = [], players = [] }) {
     <div>
       {/* Row 1: Heading on left, Singles/Doubles toggle on right */}
       <div className="flex items-center justify-between mb-2.5 gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
-          <Trophy size={16} className="text-orange-600" /> Top Seeds
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
+            <Trophy size={16} className="text-orange-600" /> Top Seeds
+          </h2>
+          <Info />
+        </div>
         <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-full p-1">
           {MODES.map((m) => {
             const Icon = m.icon;
