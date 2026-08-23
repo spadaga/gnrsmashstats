@@ -20,6 +20,8 @@ import {
   isAbandoned,
   matchesForPlayer,
   matchesForPair,
+  computeVersusStats,
+  matchesVersus,
 } from "../lib/ranking";
 import Info from "../components/Info";
 import { Bar, PeriodTabs } from "./Report";
@@ -206,11 +208,14 @@ function MatchRow({ m, name }) {
 }
 
 function PlayerCombosCard({ matches, playerName, onDrilldown }) {
+  const [tab, setTab] = useState("with"); // "with" | "versus"
+
+  // Partner Combos ("With")
   const pairs = computePairStats(matches).filter((x) =>
     x.players.includes(playerName),
   );
   const partnerOf = (pair) => pair.players.find((n) => n !== playerName);
-  const overall = pairs.reduce(
+  const overallWith = pairs.reduce(
     (acc, x) => ({
       played: acc.played + x.played,
       wins: acc.wins + x.wins,
@@ -218,82 +223,203 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
     }),
     { played: 0, wins: 0, losses: 0 },
   );
-  const max = Math.max(1, ...pairs.map((x) => x.played));
+  const maxWith = Math.max(1, ...pairs.map((x) => x.played));
+
+  // Opponent Matchups ("Versus")
+  const versusList = computeVersusStats(matches, playerName);
+  const overallVersus = versusList.reduce(
+    (acc, x) => ({
+      played: acc.played + x.played,
+      wins: acc.wins + x.wins,
+      losses: acc.losses + x.losses,
+    }),
+    { played: 0, wins: 0, losses: 0 },
+  );
+  const maxVersus = Math.max(1, ...versusList.map((x) => x.played));
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-5">
-      <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300 mb-3">
-        Player Combos
-      </h2>
-      {pairs.length === 0 ? (
-        <p className="text-slate-400 text-sm">No partner combinations yet.</p>
-      ) : (
-        <>
-          <div className="grid grid-cols-3 gap-3 mb-5">
-            <StatTile
-              value={pairs.length}
-              label="Combinations played"
-              color="text-slate-800 dark:text-slate-100"
-            />
-            <StatTile
-              value={overall.played}
-              label="Total matches"
-              onClick={() =>
-                onDrilldown({
-                  title: `${playerName} — all matches`,
-                  list: matchesForPlayer(matches, playerName),
-                })
-              }
-            />
-            <StatTile
-              value={`${overall.wins}W – ${overall.losses}L`}
-              label="Overall record"
-              onClick={() =>
-                onDrilldown({
-                  title: `${playerName} — all matches`,
-                  list: matchesForPlayer(matches, playerName),
-                })
-              }
-            />
-          </div>
-          <div className="space-y-2 mb-5">
-            {pairs.map((x) => (
-              <Bar
-                key={x.players.join("|")}
-                label={`w/ ${partnerOf(x)}`}
-                value={x.played}
-                max={max}
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
+          Player Combos
+        </h2>
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-full p-1">
+          <button
+            type="button"
+            onClick={() => setTab("with")}
+            className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide transition ${
+              tab === "with"
+                ? "bg-slate-900 dark:bg-orange-600 text-white"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+            }`}
+          >
+            With (Partners)
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("versus")}
+            className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide transition ${
+              tab === "versus"
+                ? "bg-slate-900 dark:bg-orange-600 text-white"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+            }`}
+          >
+            Versus (Opponents)
+          </button>
+        </div>
+      </div>
+
+      {tab === "with" ? (
+        pairs.length === 0 ? (
+          <p className="text-slate-400 text-sm">No partner combinations yet.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-3 mb-5">
+              <StatTile
+                value={pairs.length}
+                label="Partners played with"
+                color="text-slate-800 dark:text-slate-100"
               />
-            ))}
-          </div>
-          <div className="space-y-1.5">
-            {pairs.map((x) => {
-              const partner = partnerOf(x);
-              return (
-                <button
+              <StatTile
+                value={overallWith.played}
+                label="Total matches"
+                onClick={() =>
+                  onDrilldown({
+                    title: `${playerName} — all matches`,
+                    list: matchesForPlayer(matches, playerName),
+                  })
+                }
+              />
+              <StatTile
+                value={`${overallWith.wins}W – ${overallWith.losses}L`}
+                label="Overall record"
+                onClick={() =>
+                  onDrilldown({
+                    title: `${playerName} — all matches`,
+                    list: matchesForPlayer(matches, playerName),
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2 mb-5">
+              {pairs.map((x) => (
+                <Bar
                   key={x.players.join("|")}
+                  label={`w/ ${partnerOf(x)}`}
+                  value={x.played}
+                  max={maxWith}
+                />
+              ))}
+            </div>
+            <div className="space-y-1.5 max-h-[22rem] overflow-y-auto pr-1">
+              {pairs.map((x) => {
+                const partner = partnerOf(x);
+                return (
+                  <button
+                    key={x.players.join("|")}
+                    type="button"
+                    onClick={() =>
+                      onDrilldown({
+                        title: `${playerName} & ${partner} together`,
+                        list: matchesForPair(matches, [playerName, partner]),
+                      })
+                    }
+                    className="w-full flex items-center justify-between text-xs px-3 py-2 rounded-lg border dark:border-slate-700 hover:border-orange-200 dark:hover:border-orange-800 transition cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/40"
+                  >
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">
+                      w/ {partner}
+                    </span>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      {x.played} played ·{" "}
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                        {x.wins}W
+                      </span>{" "}
+                      –{" "}
+                      <span className="text-red-500 dark:text-red-400 font-bold">
+                        {x.losses}L
+                      </span>{" "}
+                      · <span className="text-orange-600 font-bold">{x.winRate}%</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )
+      ) : (
+        versusList.length === 0 ? (
+          <p className="text-slate-400 text-sm">No opponent matches yet.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-3 mb-5">
+              <StatTile
+                value={versusList.length}
+                label="Opponents faced"
+                color="text-slate-800 dark:text-slate-100"
+              />
+              <StatTile
+                value={overallVersus.played}
+                label="Total matchups"
+                onClick={() =>
+                  onDrilldown({
+                    title: `${playerName} — all matches`,
+                    list: matchesForPlayer(matches, playerName),
+                  })
+                }
+              />
+              <StatTile
+                value={`${overallVersus.wins}W – ${overallVersus.losses}L`}
+                label="Overall vs record"
+                onClick={() =>
+                  onDrilldown({
+                    title: `${playerName} — all matches`,
+                    list: matchesForPlayer(matches, playerName),
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2 mb-5">
+              {versusList.map((x) => (
+                <Bar
+                  key={x.opponent}
+                  label={`vs ${x.opponent}`}
+                  value={x.played}
+                  max={maxVersus}
+                />
+              ))}
+            </div>
+            <div className="space-y-1.5 max-h-[22rem] overflow-y-auto pr-1">
+              {versusList.map((x) => (
+                <button
+                  key={x.opponent}
                   type="button"
                   onClick={() =>
                     onDrilldown({
-                      title: `${playerName} & ${partner} together`,
-                      list: matchesForPair(matches, [playerName, partner]),
+                      title: `${playerName} vs ${x.opponent}`,
+                      list: matchesVersus(matches, playerName, x.opponent),
                     })
                   }
-                  className="w-full flex items-center justify-between text-xs px-3 py-2 rounded-lg border dark:border-slate-700 hover:border-orange-200 dark:hover:border-orange-800 transition"
+                  className="w-full flex items-center justify-between text-xs px-3 py-2 rounded-lg border dark:border-slate-700 hover:border-orange-200 dark:hover:border-orange-800 transition cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/40"
                 >
                   <span className="font-semibold text-slate-700 dark:text-slate-200">
-                    w/ {partner}
+                    vs {x.opponent}
                   </span>
                   <span className="text-slate-500 dark:text-slate-400">
                     {x.played} played ·{" "}
-                    <span className="text-orange-600 font-bold">{x.wins}W</span>{" "}
-                    – {x.losses}L · {x.winRate}%
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                      {x.wins}W
+                    </span>{" "}
+                    –{" "}
+                    <span className="text-red-500 dark:text-red-400 font-bold">
+                      {x.losses}L
+                    </span>{" "}
+                    · <span className="text-orange-600 font-bold">{x.winRate}%</span>
                   </span>
                 </button>
-              );
-            })}
-          </div>
-        </>
+              ))}
+            </div>
+          </>
+        )
       )}
     </div>
   );

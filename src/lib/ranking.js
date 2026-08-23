@@ -340,3 +340,45 @@ export function formatYoutubeUrl(url) {
   }
   return trimmed;
 }
+
+export function computeVersusStats(matches, playerName) {
+  const opponentMap = new Map();
+  for (const m of matches) {
+    const onTeam1 = m.team1.includes(playerName);
+    const onTeam2 = m.team2.includes(playerName);
+    if (!onTeam1 && !onTeam2) continue;
+    const playerTeam = onTeam1 ? 1 : 2;
+    const opponents = onTeam1 ? m.team2 : m.team1;
+    const team1Won = m.score1 > m.score2;
+    const won = (playerTeam === 1) === team1Won;
+
+    for (const opp of opponents) {
+      if (isGuestName(opp)) continue;
+      if (!opponentMap.has(opp)) {
+        opponentMap.set(opp, { opponent: opp, played: 0, wins: 0, losses: 0 });
+      }
+      const entry = opponentMap.get(opp);
+      entry.played++;
+      if (won) entry.wins++;
+      else entry.losses++;
+    }
+  }
+
+  const result = Array.from(opponentMap.values()).map((entry) => ({
+    ...entry,
+    winRate: entry.played ? Math.round((entry.wins / entry.played) * 100) : 0,
+  }));
+
+  result.sort((a, b) => b.played - a.played || b.winRate - a.winRate);
+  return result;
+}
+
+export function matchesVersus(matches, a, b) {
+  return sortMatchesDesc(
+    matches.filter(
+      (m) =>
+        (m.team1.includes(a) && m.team2.includes(b)) ||
+        (m.team2.includes(a) && m.team1.includes(b)),
+    ),
+  );
+}
