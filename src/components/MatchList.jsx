@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import {
   AlertTriangle,
   Loader2,
@@ -100,6 +100,17 @@ export default function MatchList({
   const [confirm, setConfirm] = useState(null);
   const [editingMatch, setEditingMatch] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const listContainerRef = useRef(null);
+  const rootRef = useRef(null);
+
+  const prevCountRef = useRef(matches.length);
+  useEffect(() => {
+    if (matches.length > prevCountRef.current) {
+      listContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    prevCountRef.current = matches.length;
+  }, [matches.length]);
   const [h2h, setH2h] = useState(["", "", "", ""]);
 
   const playerNames = (players || []).map((p) =>
@@ -198,13 +209,15 @@ export default function MatchList({
   async function handleSaveScore(id, updates) {
     setEditingMatch(null);
     await onUpdate(id, updates);
+    listContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   const inputCls =
     "border dark:border-slate-600 rounded-lg px-2 py-1 text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100";
 
   return (
-    <div className="relative bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-4">
+    <div ref={rootRef} className="relative bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-4">
       <div className="relative mb-3">
         <Search
           size={13}
@@ -329,7 +342,7 @@ export default function MatchList({
         </div>
       )}
 
-      <div className="space-y-4 max-h-[40rem] overflow-y-auto pr-1">
+      <div ref={listContainerRef} className="space-y-4 max-h-[40rem] overflow-y-auto pr-1">
         {groups.map(({ date, items }) => (
           <div key={date}>
             <div className="flex items-center gap-2 mb-2">
