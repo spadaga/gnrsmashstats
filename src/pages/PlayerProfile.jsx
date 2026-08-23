@@ -2,10 +2,12 @@ import { useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
+  Calendar,
   CalendarClock,
   CreditCard,
   ShieldCheck,
   Trophy,
+  X,
 } from "lucide-react";
 import YoutubeIcon from "../components/YoutubeIcon";
 import Avatar from "../components/Avatar";
@@ -440,6 +442,7 @@ export default function PlayerProfile({
   const [rankPeriod, setRankPeriod] = useState("today");
   const [rankFrom, setRankFrom] = useState("");
   const [rankTo, setRankTo] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
   const playerObj = players.find(
     (p) => (typeof p === "string" ? p : p.name) === playerName,
   );
@@ -465,6 +468,9 @@ export default function PlayerProfile({
   const abandonedMatches = playerMatches.filter(isAbandoned);
   const abandonedCount = abandonedMatches.length;
   const recent = playerMatches.slice(0, 15);
+  const displayedMatches = selectedDate
+    ? playerMatches.filter((m) => m.date === selectedDate)
+    : recent;
 
   const periodRecords = PERIOD_CARDS.map((p) => ({
     ...p,
@@ -681,31 +687,68 @@ export default function PlayerProfile({
 
       <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-5">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
-            Recent Matches
-          </h2>
-          {abandonedCount > 0 && (
-            <button
-              type="button"
-              onClick={() =>
-                setDrilldown({
-                  title: `${playerName} — abandoned matches`,
-                  list: abandonedMatches,
-                })
-              }
-              className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition"
-            >
-              <AlertTriangle size={11} /> {abandonedCount} abandoned
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
+              Recent Matches
+            </h2>
+            {selectedDate && (
+              <span className="text-xs text-orange-600 dark:text-orange-400 font-semibold">
+                ({displayedMatches.length} match{displayedMatches.length !== 1 ? "es" : ""})
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {abandonedCount > 0 && !selectedDate && (
+              <button
+                type="button"
+                onClick={() =>
+                  setDrilldown({
+                    title: `${playerName} — abandoned matches`,
+                    list: abandonedMatches,
+                  })
+                }
+                className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition"
+              >
+                <AlertTriangle size={11} /> {abandonedCount} abandoned
+              </button>
+            )}
+
+            {/* Date filter with calendar icon */}
+            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-700/50 border dark:border-slate-600 rounded-lg px-2.5 py-1">
+              <Calendar size={13} className="text-slate-400 shrink-0" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="text-xs bg-transparent text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer"
+                title="Select date to show all matches"
+              />
+              {selectedDate && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate("")}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition p-0.5"
+                  title="Clear date filter"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
+
         <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
-          {recent.length === 0 ? (
-            <p className="text-slate-400 text-center py-4 text-sm">
-              No matches yet.
+          {displayedMatches.length === 0 ? (
+            <p className="text-slate-400 text-center py-6 text-sm">
+              {selectedDate
+                ? `No matches found for ${selectedDate}.`
+                : "No matches yet."}
             </p>
           ) : (
-            recent.map((m) => <MatchRow key={m.id} m={m} name={playerName} />)
+            displayedMatches.map((m) => (
+              <MatchRow key={m.id} m={m} name={playerName} />
+            ))
           )}
         </div>
       </div>

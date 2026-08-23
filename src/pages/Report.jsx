@@ -867,7 +867,6 @@ export default function Report({ data, actions, isSuperAdmin }) {
   const [tab, setTab] = useState("duo");
   const players = data.players;
   const matches = data.matches;
-  const dues = data.dues || [];
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-4">
@@ -892,15 +891,12 @@ export default function Report({ data, actions, isSuperAdmin }) {
       </div>
       {tab === "partyDue" ? (
         <PartyDueSection
-          dues={dues}
           players={players}
           canModify={isSuperAdmin}
           onAdd={actions?.addDue}
           onUpdate={actions?.updateDue}
           onDelete={actions?.deleteDue}
         />
-      ) : players.length < 2 ? (
-        <p className="text-slate-400 text-sm">Add at least 2 players first.</p>
       ) : (
         <>
           {tab === "duo" && <DuoSection matches={matches} players={players} />}
