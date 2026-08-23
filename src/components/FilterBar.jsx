@@ -19,7 +19,7 @@ export default function FilterBar({ period, onPeriod, onExport, onImport, isAdmi
                 ? 'bg-slate-900 dark:bg-orange-600 text-white'
                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
             }`}>
-            {p.label}
+            <span className="sm:hidden">{p.shortLabel || p.label}</span><span className="hidden sm:inline">{p.label}</span>
           </button>
         ))}
       </div>

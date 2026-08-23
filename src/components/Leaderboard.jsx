@@ -13,8 +13,8 @@ import Info from "./Info";
 import MatchesModal from "./MatchesModal";
 
 const MODES = [
-  { key: "singles", label: "Singles" },
-  { key: "doubles", label: "Doubles" },
+  { key: "singles", label: "Singles", shortLabel: "Sgls" },
+  { key: "doubles", label: "Doubles", shortLabel: "Dbls" },
 ];
 
 const PERIODS = [
@@ -86,7 +86,7 @@ export default function Leaderboard({
                   : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               }`}
             >
-              {m.label}
+              <span className="sm:hidden">{m.shortLabel || m.label}</span><span className="hidden sm:inline">{m.label}</span>
             </button>
           ))}
         </div>

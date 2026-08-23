@@ -15,10 +15,10 @@ import MatchEditModal from "./MatchEditModal";
 import YoutubeIcon from "./YoutubeIcon";
 
 const MODES = [
-  { key: "today", label: "Today" },
-  { key: "sunday", label: "Sunday" },
-  { key: "h2h", label: "Head-to-Head" },
-  { key: "all", label: "All Matches" },
+  { key: "today", label: "Today", shortLabel: "Day" },
+  { key: "sunday", label: "Sunday", shortLabel: "Sun" },
+  { key: "h2h", label: "Head-to-Head", shortLabel: "H2H" },
+  { key: "all", label: "All Matches", shortLabel: "All" },
 ];
 
 const todayISO = () => localISODate();
@@ -260,7 +260,8 @@ export default function MatchList({
               }
             >
               {r.key === "h2h" && <Swords size={12} />}
-              {r.label}
+              <span className="sm:hidden">{r.shortLabel || r.label}</span>
+              <span className="hidden sm:inline">{r.label}</span>
             </button>
           ))}
         </div>

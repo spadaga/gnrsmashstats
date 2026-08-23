@@ -22,8 +22,8 @@ const PERIODS = [
 ];
 
 const MODES = [
-  { key: "doubles", label: "Doubles", icon: Users },
-  { key: "singles", label: "Singles", icon: User },
+  { key: "doubles", label: "Doubles", shortLabel: "Dbls", icon: Users },
+  { key: "singles", label: "Singles", shortLabel: "Sgls", icon: User },
 ];
 
 function TopSeedsAllModal({ items, mode, title, onClose, photoByName = {} }) {
@@ -173,7 +173,7 @@ export default function TopSeeds({ matches = [], players = [], photoByName = {} 
                 }
               >
                 <Icon size={12} />
-                {m.label}
+                <span className="sm:hidden">{m.shortLabel || m.label}</span><span className="hidden sm:inline">{m.label}</span>
               </button>
             );
           })}

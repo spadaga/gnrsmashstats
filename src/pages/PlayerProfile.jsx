@@ -28,12 +28,12 @@ import Info from "../components/Info";
 import { Bar, PeriodTabs } from "./Report";
 
 const RANK_PERIODS = [
-  { key: "today", label: "Day", short: "Day" },
-  { key: "sunday", label: "Sunday", short: "Sun" },
-  { key: "week", label: "Week", short: "Week" },
-  { key: "month", label: "Month", short: "Mon" },
-  { key: "all", label: "Overall", short: "All" },
-  { key: "custom", label: "Date Range", short: "Date" },
+  { key: "today", label: "Day", shortLabel: "Day" },
+  { key: "sunday", label: "Sunday", shortLabel: "Sun" },
+  { key: "week", label: "Week", shortLabel: "Week" },
+  { key: "month", label: "Month", shortLabel: "Month" },
+  { key: "all", label: "Overall", shortLabel: "All" },
+  { key: "custom", label: "Date Range", shortLabel: "Date" },
 ];
 
 function daysLeft(endDate) {
@@ -248,24 +248,26 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
           <button
             type="button"
             onClick={() => setTab("with")}
-            className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide transition ${
+            className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide transition ${
               tab === "with"
                 ? "bg-slate-900 dark:bg-orange-600 text-white"
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
-            With (Partners)
+            <span className="sm:hidden">With</span>
+            <span className="hidden sm:inline">With (Partners)</span>
           </button>
           <button
             type="button"
             onClick={() => setTab("versus")}
-            className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide transition ${
+            className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide transition ${
               tab === "versus"
                 ? "bg-slate-900 dark:bg-orange-600 text-white"
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
-            Versus (Opponents)
+            <span className="sm:hidden">Versus</span>
+            <span className="hidden sm:inline">Versus (Opponents)</span>
           </button>
         </div>
       </div>
