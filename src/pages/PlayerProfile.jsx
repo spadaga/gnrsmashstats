@@ -489,6 +489,7 @@ export default function PlayerProfile({
         <ArrowLeft size={15} /> Back
       </button>
 
+      {/* Profile Card: Avatar, Name, Role, Court Slot & Dues */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-5">
         <div className="flex items-center gap-4 flex-wrap">
           <Avatar name={playerName} photo={photo} size="xl" />
@@ -553,8 +554,53 @@ export default function PlayerProfile({
             )}
           </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+      {/* Ranking Section (Directly below the pic) */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
+            Ranking
+          </h2>
+          <Info />
+        </div>
+        <PeriodTabs
+          period={rankPeriod}
+          onPeriod={setRankPeriod}
+          from={rankFrom}
+          to={rankTo}
+          onFrom={setRankFrom}
+          onTo={setRankTo}
+          periods={RANK_PERIODS}
+          isMobileShort
+        />
+        {!myStat || myStat.played === 0 ? (
+          <p className="text-slate-400 text-sm">No matches in this range.</p>
+        ) : (
+          <div className="flex items-center gap-4">
+            <span
+              className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${myRank === 1 ? "bg-orange-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"}`}
+            >
+              {myRank ?? "NA"}
+            </span>
+            <div>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                {myStat.wins}W – {myStat.losses}L · {myStat.played} played
+              </p>
+              <p className="text-lg font-extrabold text-orange-600">
+                {myStat.winRate}% win rate
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Total Sections: 4 Stat Tiles */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-5">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300 mb-3">
+          Total Record
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatTile
             value={overall.played}
             label="Total Played"
@@ -599,44 +645,6 @@ export default function PlayerProfile({
             }
           />
         </div>
-      </div>
-
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
-            Ranking
-          </h2>
-          <Info />
-        </div>
-        <PeriodTabs
-          period={rankPeriod}
-          onPeriod={setRankPeriod}
-          from={rankFrom}
-          to={rankTo}
-          onFrom={setRankFrom}
-          onTo={setRankTo}
-          periods={RANK_PERIODS}
-          isMobileShort
-        />
-        {!myStat || myStat.played === 0 ? (
-          <p className="text-slate-400 text-sm">No matches in this range.</p>
-        ) : (
-          <div className="flex items-center gap-4">
-            <span
-              className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${myRank === 1 ? "bg-orange-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"}`}
-            >
-              {myRank ?? "NA"}
-            </span>
-            <div>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                {myStat.wins}W – {myStat.losses}L · {myStat.played} played
-              </p>
-              <p className="text-lg font-extrabold text-orange-600">
-                {myStat.winRate}% win rate
-              </p>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-5">
