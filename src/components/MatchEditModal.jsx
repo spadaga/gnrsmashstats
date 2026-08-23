@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Save, X } from "lucide-react";
 import PlayerPicker from "./PlayerPicker";
+import YoutubeIcon from "./YoutubeIcon";
 import { formatYoutubeUrl } from "../lib/ranking";
 
 const MAX_SCORE = 30;
@@ -11,6 +12,7 @@ export default function MatchEditModal({
   onSave,
   onClose,
   photoByName = {},
+  videoOnly = false,
 }) {
   const [form, setForm] = useState({
     p1: match.team1[0] || "",
@@ -47,6 +49,14 @@ export default function MatchEditModal({
 
   function handleSubmit(e) {
     e.preventDefault();
+    if (videoOnly) {
+      // In video-only mode, only update the YouTube URL
+      onSave(match.id, {
+        youtubeUrl: formatYoutubeUrl(form.youtubeUrl),
+      });
+      return;
+    }
+
     const { p1, p2, p3, p4, score1, score2, comment, youtubeUrl } = form;
     const names = [p1, p2, p3, p4];
     if (names.some((n) => !n))
@@ -94,9 +104,22 @@ export default function MatchEditModal({
         className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl mt-8 p-6 space-y-4"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-            Edit Match
-          </h3>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              {videoOnly ? (
+                <>
+                  <YoutubeIcon size={20} /> Update Match Video
+                </>
+              ) : (
+                "Edit Match"
+              )}
+            </h3>
+            {videoOnly && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                As a Video Editor, you can add or update the YouTube video link for this match.
+              </p>
+            )}
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -106,84 +129,115 @@ export default function MatchEditModal({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Team 1
-            </legend>
-            <PlayerPicker
-              value={form.p1}
-              onChange={(v) => set("p1", v)}
-              options={availableFor("p1")}
-              photoByName={photoByName}
-            />
-            <PlayerPicker
-              value={form.p2}
-              onChange={(v) => set("p2", v)}
-              options={availableFor("p2")}
-              photoByName={photoByName}
-            />
-            <input
-              type="number"
-              min={0}
-              max={MAX_SCORE}
-              value={form.score1}
-              onChange={(e) => set("score1", e.target.value)}
-              placeholder={`Score (0-${MAX_SCORE})`}
-              className={inputCls}
-              required
-            />
-          </fieldset>
+        {videoOnly ? (
+          /* Read-only match overview card for Video Editor */
+          <div className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl border dark:border-slate-700 space-y-2">
+            <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wide">
+              <span>Date: {match.date}</span>
+              <span>Match Details (Read-Only)</span>
+            </div>
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="font-semibold text-slate-800 dark:text-slate-200 flex-1 text-right">
+                {form.p1} & {form.p2}
+              </span>
+              <span className="font-extrabold text-orange-600 bg-white dark:bg-slate-700 px-2.5 py-1 rounded-lg border dark:border-slate-600 shadow-sm shrink-0">
+                {form.score1} - {form.score2}
+              </span>
+              <span className="font-semibold text-slate-800 dark:text-slate-200 flex-1">
+                {form.p3} & {form.p4}
+              </span>
+            </div>
+            {match.comment && (
+              <p className="text-xs text-slate-600 dark:text-slate-400 italic pt-1 border-t dark:border-slate-700/50">
+                "{match.comment}"
+              </p>
+            )}
+          </div>
+        ) : (
+          /* Full match edit fields for super admin */
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                  Team 1
+                </legend>
+                <PlayerPicker
+                  value={form.p1}
+                  onChange={(v) => set("p1", v)}
+                  options={availableFor("p1")}
+                  photoByName={photoByName}
+                />
+                <PlayerPicker
+                  value={form.p2}
+                  onChange={(v) => set("p2", v)}
+                  options={availableFor("p2")}
+                  photoByName={photoByName}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  max={MAX_SCORE}
+                  value={form.score1}
+                  onChange={(e) => set("score1", e.target.value)}
+                  placeholder={`Score (0-${MAX_SCORE})`}
+                  className={inputCls}
+                  required
+                />
+              </fieldset>
 
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Team 2
-            </legend>
-            <PlayerPicker
-              value={form.p3}
-              onChange={(v) => set("p3", v)}
-              options={availableFor("p3")}
-              photoByName={photoByName}
-            />
-            <PlayerPicker
-              value={form.p4}
-              onChange={(v) => set("p4", v)}
-              options={availableFor("p4")}
-              photoByName={photoByName}
-            />
-            <input
-              type="number"
-              min={0}
-              max={MAX_SCORE}
-              value={form.score2}
-              onChange={(e) => set("score2", e.target.value)}
-              placeholder={`Score (0-${MAX_SCORE})`}
-              className={inputCls}
-              required
-            />
-          </fieldset>
-        </div>
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                  Team 2
+                </legend>
+                <PlayerPicker
+                  value={form.p3}
+                  onChange={(v) => set("p3", v)}
+                  options={availableFor("p3")}
+                  photoByName={photoByName}
+                />
+                <PlayerPicker
+                  value={form.p4}
+                  onChange={(v) => set("p4", v)}
+                  options={availableFor("p4")}
+                  photoByName={photoByName}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  max={MAX_SCORE}
+                  value={form.score2}
+                  onChange={(e) => set("score2", e.target.value)}
+                  placeholder={`Score (0-${MAX_SCORE})`}
+                  className={inputCls}
+                  required
+                />
+              </fieldset>
+            </div>
 
+            <div>
+              <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+                Comment{" "}
+                <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
+              <textarea
+                value={form.comment}
+                onChange={(e) => set("comment", e.target.value)}
+                rows={2}
+                className={inputCls + " resize-none"}
+              />
+            </div>
+          </>
+        )}
+
+        {/* YouTube Link Field (Always editable) */}
         <div>
-          <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
-            Comment{" "}
-            <span className="text-slate-400 font-normal">(optional)</span>
-          </label>
-          <textarea
-            value={form.comment}
-            onChange={(e) => set("comment", e.target.value)}
-            rows={2}
-            className={inputCls + " resize-none"}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
-            YouTube Link{" "}
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1.5">
+            <YoutubeIcon size={16} /> YouTube Link{" "}
             <span className="text-slate-400 font-normal">(optional)</span>
           </label>
           <input
-            type="url"
+            type="text"
+            autoFocus={videoOnly}
             value={form.youtubeUrl}
             onChange={(e) => set("youtubeUrl", e.target.value)}
             placeholder="https://www.youtube.com/watch?v=..."
@@ -207,7 +261,7 @@ export default function MatchEditModal({
             type="submit"
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium hover:bg-orange-700 transition"
           >
-            <Save size={14} /> Save Changes
+            <Save size={14} /> {videoOnly ? "Save Video Link" : "Save Changes"}
           </button>
         </div>
       </form>

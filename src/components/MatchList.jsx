@@ -482,6 +482,7 @@ export default function MatchList({
           onSave={handleSaveScore}
           onClose={() => setEditingMatch(null)}
           photoByName={photoByName}
+          videoOnly={!isSuperAdmin}
         />
       )}
 
