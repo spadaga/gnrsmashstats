@@ -22,20 +22,20 @@ import {
 import ConfirmDialog from "../components/ConfirmDialog";
 
 const TABS = [
-  { key: "duo", label: "Duo Head-to-Head" },
-  { key: "combos", label: "Player Combos" },
-  { key: "individual", label: "Individual Rankings" },
-  { key: "pairs", label: "Pair Rankings" },
-  { key: "abandoned", label: "Abandoned Matches" },
-  { key: "partyDue", label: "Party Dues" },
+  { key: "duo", label: "Duo Head-to-Head", shortLabel: "Duo H2H" },
+  { key: "combos", label: "Player Combos", shortLabel: "Combos" },
+  { key: "individual", label: "Individual Rankings", shortLabel: "Individual" },
+  { key: "pairs", label: "Pair Rankings", shortLabel: "Pairs" },
+  { key: "abandoned", label: "Abandoned Matches", shortLabel: "Abandoned" },
+  { key: "partyDue", label: "Party Dues", shortLabel: "Dues" },
 ];
 
 const PERIODS = [
-  { key: "today", label: "Day" },
-  { key: "week", label: "Week" },
-  { key: "month", label: "Month" },
-  { key: "year", label: "Year" },
-  { key: "custom", label: "Custom Range" },
+  { key: "today", label: "Today", shortLabel: "Day" },
+  { key: "week", label: "Week", shortLabel: "Week" },
+  { key: "month", label: "Month", shortLabel: "Month" },
+  { key: "year", label: "Year", shortLabel: "Year" },
+  { key: "custom", label: "Custom Range", shortLabel: "Custom" },
 ];
 
 const selectCls =
@@ -85,7 +85,8 @@ export function PeriodTabs({
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
-            {p.label}
+            <span className="sm:hidden">{p.shortLabel || p.short || p.label}</span>
+            <span className="hidden sm:inline">{p.label}</span>
           </button>
         ))}
       </div>
@@ -878,13 +879,14 @@ export default function Report({ data, actions, isSuperAdmin }) {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide transition ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide transition ${
               tab === t.key
                 ? "bg-slate-900 dark:bg-orange-600 text-white"
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
-            {t.label}
+            <span className="sm:hidden">{t.shortLabel || t.label}</span>
+            <span className="hidden sm:inline">{t.label}</span>
           </button>
         ))}
       </div>
