@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Camera, Pencil, Save, ShieldCheck, Trash2, UserPlus, X } from 'lucide-react'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Avatar from '../components/Avatar'
-import { SUPER_ADMIN_NAME } from '../lib/admins'
+import { SUPER_ADMIN_NAME, getPlayerRole } from '../lib/admins'
+import YoutubeIcon from '../components/YoutubeIcon'
 
 const MAX_AVATAR_DIMENSION = 300 // px, longest side
 const MAX_AVATAR_BYTES = 150 * 1024
@@ -77,7 +78,7 @@ function EditPlayerForm({ player, onSave, onCancel }) {
 
   function handleSave() {
     if (!name.trim()) return setErr('Name cannot be empty.')
-    if (pin && !/^\d{4}$/.test(pin)) return setErr('PIN must be exactly 4 digits.')
+    if (pin && !/^d{4}$/.test(pin)) return setErr('PIN must be exactly 4 digits.')
     onSave(pName, { name: name.trim(), pin: pin || undefined })
   }
   const inp = 'flex-1 border dark:border-slate-600 rounded-lg px-2.5 py-1.5 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-400'
@@ -106,7 +107,8 @@ export default function Players({ players, actions, isAdmin, onViewProfile }) {
   function handleAdd(e) {
     e.preventDefault()
     if (!name.trim()) return
-    actions.addPlayer(name.trim()); setName('')
+    actions.addPlayer(name.trim())
+    setName('')
   }
 
   function handleSaveEdit(oldName, updates) {
@@ -132,16 +134,12 @@ export default function Players({ players, actions, isAdmin, onViewProfile }) {
             const playerName = typeof p === 'string' ? p : p.name
             const playerPhoto = typeof p === 'object' ? p.photo : undefined
             const isSuperAdminPlayer = playerName === SUPER_ADMIN_NAME
-            // Suresh (the fixed super admin) always shows Admin. Everyone else defaults to
-            // Contributor unless Suresh has promoted them via the role toggle below — `role`
-            // is a display badge only, separate from `pin` (which just governs login).
-            const isPromotedAdmin = typeof p === 'object' && p.role === 'admin'
-            const showsAsAdmin = isSuperAdminPlayer || isPromotedAdmin
+            const role = getPlayerRole(p)
             const isEditing = editingName === playerName
             return (
               <div key={playerName} className="px-2 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <PlayerAvatarPicker name={playerName} photo={playerPhoto} isAdmin={isAdmin}
                       onChange={(photo) => actions.updatePlayer(playerName, { photo })}
                       onClear={() => actions.updatePlayer(playerName, { photo: '' })} />
@@ -149,9 +147,13 @@ export default function Players({ players, actions, isAdmin, onViewProfile }) {
                       className="text-sm font-medium text-slate-800 dark:text-slate-100 hover:text-orange-600 dark:hover:text-orange-400 hover:underline transition">
                       {playerName}
                     </button>
-                    {showsAsAdmin ? (
+                    {isSuperAdminPlayer || role === 'admin' ? (
                       <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded-full">
                         <ShieldCheck size={10} /> Admin
+                      </span>
+                    ) : role === 'video_editor' ? (
+                      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 px-1.5 py-0.5 rounded-full">
+                        <YoutubeIcon size={12} /> Video Editor
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold uppercase tracking-wide bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 px-1.5 py-0.5 rounded-full">
@@ -159,13 +161,18 @@ export default function Players({ players, actions, isAdmin, onViewProfile }) {
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-2">
                     {isAdmin && !isSuperAdminPlayer && (
-                      <button onClick={() => actions.updatePlayer(playerName, { role: isPromotedAdmin ? '' : 'admin' })}
-                        className="text-[10px] font-bold uppercase tracking-wide text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition px-1.5"
-                        title={isPromotedAdmin ? 'Demote to Contributor' : 'Promote to Admin'}>
-                        {isPromotedAdmin ? 'Demote' : 'Make Admin'}
-                      </button>
+                      <select
+                        value={role}
+                        onChange={(e) => actions.updatePlayer(playerName, { role: e.target.value === 'contributor' ? '' : e.target.value })}
+                        className="text-[11px] font-semibold rounded-lg border dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-orange-400 cursor-pointer"
+                        title="Change player role"
+                      >
+                        <option value="contributor">Contributor</option>
+                        <option value="video_editor">Video Editor</option>
+                        <option value="admin">Admin</option>
+                      </select>
                     )}
                     {isAdmin && !isEditing && (
                       <div className="flex items-center gap-1">

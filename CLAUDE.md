@@ -497,13 +497,11 @@ not plain `isAdmin`). Regular admins and guests get the read-only list. Each row
 `PlayerAvatarPicker` — super-admin only for the hover upload/clear overlay, see Player avatars above;
 everyone else just sees the plain avatar/initials circle.
 
-- **Role badge**: `SUPER_ADMIN_NAME` (Suresh Padaga) always shows **Admin**; every other player shows
-  **Admin** only if `p.role === 'admin'`, otherwise **Contributor** — regardless of whether they have a
-  `pin` (having a pin only controls login/regular-admin-for-today capability, not this badge).
-- **Role toggle** ("Make Admin" / "Demote" text button next to the badge): visible to the super admin
-  only, on every row except Suresh's own (his is fixed, not editable). Calls
-  `actions.updatePlayer(playerName, { role: 'admin' | '' })` — the super admin has full, sole control over
-  who else displays as Admin.
+- **Role badges**:
+  - **Admin**: `SUPER_ADMIN_NAME` (Suresh Padaga) and promoted admins (`role === 'admin'`) show the orange `ShieldCheck` Admin badge.
+  - **Video Editor**: Players with `role === 'video_editor'` (or in `VIDEO_ADMIN_NAMES` e.g., Sanjeev Kumar, Abdhulla) show the red `YoutubeIcon` Video Editor badge. They have permission to add and update YouTube video links for current matches and all historical/old matches.
+  - **Contributor**: Standard players without elevated roles show the slate Contributor badge.
+- **Role selector** (dropdown next to the badge): visible to admins on every player row except Suresh's own (his super-admin role is fixed). Allows switching between `Contributor`, `Video Editor`, and `Admin`. Calls `actions.updatePlayer(playerName, { role })`.
 - Clicking a player's **name** (not the avatar, which stays the super-admin upload target) calls
   `onViewProfile(playerName)`, navigating to `PlayerProfile`.
 

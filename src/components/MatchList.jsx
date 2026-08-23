@@ -89,6 +89,8 @@ export default function MatchList({
   onUpdate,
   onLogMatch,
   isAdmin,
+  isSuperAdmin,
+  canEditVideo,
   photoByName,
 }) {
   const [mode, setMode] = useState("today");
@@ -354,7 +356,8 @@ export default function MatchList({
                 const loserTeam = team1Won ? m.team2 : m.team1;
                 const loserScore = team1Won ? m.score2 : m.score1;
 
-                const canModify = isAdmin;
+                const canEdit = isSuperAdmin || isAdmin || canEditVideo;
+                const canDelete = isSuperAdmin;
                 const abandoned = isAbandoned(m);
                 const dayNo = items.length - idx;
                 return (
@@ -430,23 +433,23 @@ export default function MatchList({
                             <YoutubeIcon size={18} />
                           </a>
                         )}
-                        {canModify && (
-                          <>
-                            <button
-                              onClick={() => setEditingMatch(m)}
-                              className="p-1.5 rounded-lg text-slate-300 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30 transition"
-                              title="Edit match"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                            <button
-                              onClick={() => setConfirm(m.id)}
-                              className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
-                              title="Delete match"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </>
+                        {canEdit && (
+                          <button
+                            onClick={() => setEditingMatch(m)}
+                            className="p-1.5 rounded-lg text-slate-300 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30 transition"
+                            title="Edit match & YouTube video link"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => setConfirm(m.id)}
+                            className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                            title="Delete match"
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         )}
                       </div>
                     </div>

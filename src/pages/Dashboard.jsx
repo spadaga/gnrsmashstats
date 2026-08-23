@@ -10,7 +10,7 @@ import SlotsTicker from '../components/SlotsTicker'
 import { filterByPeriod } from '../lib/ranking'
 import { exportAll } from '../lib/api'
 
-export default function Dashboard({ data, actions, onNavigate, onImport, isAdmin, isSuperAdmin, photoByName, onViewProfile }) {
+export default function Dashboard({ data, actions, onNavigate, onImport, isAdmin, isSuperAdmin, canEditVideo, photoByName, onViewProfile }) {
   const [period, setPeriod] = useState('all')
   const filtered = filterByPeriod(data.matches, period)
 
@@ -21,7 +21,7 @@ export default function Dashboard({ data, actions, onNavigate, onImport, isAdmin
       <StatCards matches={filtered} players={data.players} />
       <TopSeeds matches={data.matches} players={data.players} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <MatchList matches={data.matches} players={data.players} onDelete={actions.deleteMatch} onUpdate={actions.updateMatch} onLogMatch={() => onNavigate('log')} isAdmin={isAdmin} isSuperAdmin={isSuperAdmin} photoByName={photoByName} />
+        <MatchList matches={data.matches} players={data.players} onDelete={actions.deleteMatch} onUpdate={actions.updateMatch} onLogMatch={() => onNavigate('log')} isAdmin={isAdmin} isSuperAdmin={isSuperAdmin} canEditVideo={canEditVideo} photoByName={photoByName} />
         <Leaderboard matches={data.matches} players={data.players} photoByName={photoByName} onViewProfile={onViewProfile} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
