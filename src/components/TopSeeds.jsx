@@ -74,7 +74,7 @@ function TopSeedsAllModal({ items, mode, title, onClose, photoByName = {} }) {
                     >
                       {i + 1}
                     </span>
-                    <div className="flex items-center -space-x-1.5 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                       {mode === "doubles" ? (
                         <>
                           <Avatar name={p.players[0]} photo={photoByName[p.players[0]]} size="xs" className="ring-1 ring-white dark:ring-slate-800" />
@@ -302,20 +302,20 @@ export default function TopSeeds({ matches = [], players = [], photoByName = {} 
                   </div>
 
                   {/* Top Seed Photos */}
-                  <div className="flex items-center -space-x-2 pt-0.5">
+                  <div className="flex items-center gap-1.5 pt-0.5">
                     {mode === "doubles" ? (
                       <>
                         <Avatar
                           name={p.players[0]}
                           photo={photos[p.players[0]]}
                           size="sm"
-                          className={`ring-2 ${i === 0 ? "ring-orange-600" : "ring-white dark:ring-slate-800"}`}
+                          className={`ring-2 ${i === 0 ? "ring-white/40" : "ring-slate-200 dark:ring-slate-700"}`}
                         />
                         <Avatar
                           name={p.players[1]}
                           photo={photos[p.players[1]]}
                           size="sm"
-                          className={`ring-2 ${i === 0 ? "ring-orange-600" : "ring-white dark:ring-slate-800"}`}
+                          className={`ring-2 ${i === 0 ? "ring-white/40" : "ring-slate-200 dark:ring-slate-700"}`}
                         />
                       </>
                     ) : (
@@ -323,7 +323,7 @@ export default function TopSeeds({ matches = [], players = [], photoByName = {} 
                         name={p.name}
                         photo={photos[p.name]}
                         size="md"
-                        className={`ring-2 ${i === 0 ? "ring-orange-600" : "ring-white dark:ring-slate-800"}`}
+                        className={`ring-2 ${i === 0 ? "ring-white/40" : "ring-slate-200 dark:ring-slate-700"}`}
                       />
                     )}
                   </div>
