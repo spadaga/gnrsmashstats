@@ -1,6 +1,6 @@
 import { AlertTriangle, X } from 'lucide-react'
 import YoutubeIcon from './YoutubeIcon'
-import { isAbandoned, sortMatchesDesc } from '../lib/ranking'
+import { isAbandoned, sortMatchesDesc, formatYoutubeUrl } from '../lib/ranking'
 
 // Newest date first; matches within a date keep their relative order (stable
 // sort), same grouping shape as MatchList's date headers.

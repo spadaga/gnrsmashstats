@@ -342,22 +342,28 @@ export function formatYoutubeUrl(url) {
 }
 
 export function computeVersusStats(matches, playerName) {
+  const normPlayer = String(playerName || "").trim().toLowerCase();
   const opponentMap = new Map();
+
   for (const m of matches) {
-    const onTeam1 = m.team1.includes(playerName);
-    const onTeam2 = m.team2.includes(playerName);
+    const t1 = (m.team1 || []).map((n) => String(n || "").trim());
+    const t2 = (m.team2 || []).map((n) => String(n || "").trim());
+    const onTeam1 = t1.some((n) => n.toLowerCase() === normPlayer);
+    const onTeam2 = t2.some((n) => n.toLowerCase() === normPlayer);
     if (!onTeam1 && !onTeam2) continue;
+
     const playerTeam = onTeam1 ? 1 : 2;
-    const opponents = onTeam1 ? m.team2 : m.team1;
-    const team1Won = m.score1 > m.score2;
+    const opponents = onTeam1 ? t2 : t1;
+    const team1Won = Number(m.score1) > Number(m.score2);
     const won = (playerTeam === 1) === team1Won;
 
     for (const opp of opponents) {
       if (isGuestName(opp)) continue;
-      if (!opponentMap.has(opp)) {
-        opponentMap.set(opp, { opponent: opp, played: 0, wins: 0, losses: 0 });
+      const key = opp;
+      if (!opponentMap.has(key)) {
+        opponentMap.set(key, { opponent: opp, played: 0, wins: 0, losses: 0 });
       }
-      const entry = opponentMap.get(opp);
+      const entry = opponentMap.get(key);
       entry.played++;
       if (won) entry.wins++;
       else entry.losses++;
@@ -374,11 +380,16 @@ export function computeVersusStats(matches, playerName) {
 }
 
 export function matchesVersus(matches, a, b) {
+  const normA = String(a || "").trim().toLowerCase();
+  const normB = String(b || "").trim().toLowerCase();
   return sortMatchesDesc(
-    matches.filter(
-      (m) =>
-        (m.team1.includes(a) && m.team2.includes(b)) ||
-        (m.team2.includes(a) && m.team1.includes(b)),
-    ),
+    matches.filter((m) => {
+      const t1 = (m.team1 || []).map((n) => String(n || "").trim().toLowerCase());
+      const t2 = (m.team2 || []).map((n) => String(n || "").trim().toLowerCase());
+      return (
+        (t1.includes(normA) && t2.includes(normB)) ||
+        (t2.includes(normA) && t1.includes(normB))
+      );
+    }),
   );
 }

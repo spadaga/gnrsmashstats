@@ -22,6 +22,7 @@ import {
   matchesForPair,
   computeVersusStats,
   matchesVersus,
+  formatYoutubeUrl,
 } from "../lib/ranking";
 import Info from "../components/Info";
 import { Bar, PeriodTabs } from "./Report";
@@ -183,7 +184,7 @@ function MatchRow({ m, name }) {
         </span>
         {m.youtubeUrl && (
           <a
-            href={m.youtubeUrl}
+            href={formatYoutubeUrl(m.youtubeUrl)}
             target="_blank"
             rel="noopener noreferrer"
             className="shrink-0 text-red-500 hover:text-red-600"
