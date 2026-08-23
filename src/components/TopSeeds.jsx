@@ -8,6 +8,8 @@ import {
   matchesForPlayer,
 } from "../lib/ranking";
 import MatchesModal from "./MatchesModal";
+import Avatar from "./Avatar";
+import { photoMap } from "../lib/admins";
 import Info from "./Info";
 
 const PERIODS = [
@@ -24,7 +26,7 @@ const MODES = [
   { key: "singles", label: "Singles", icon: User },
 ];
 
-function TopSeedsAllModal({ items, mode, title, onClose }) {
+function TopSeedsAllModal({ items, mode, title, onClose, photoByName = {} }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto"
@@ -72,6 +74,16 @@ function TopSeedsAllModal({ items, mode, title, onClose }) {
                     >
                       {i + 1}
                     </span>
+                    <div className="flex items-center -space-x-1.5 shrink-0">
+                      {mode === "doubles" ? (
+                        <>
+                          <Avatar name={p.players[0]} photo={photoByName[p.players[0]]} size="xs" className="ring-1 ring-white dark:ring-slate-800" />
+                          <Avatar name={p.players[1]} photo={photoByName[p.players[1]]} size="xs" className="ring-1 ring-white dark:ring-slate-800" />
+                        </>
+                      ) : (
+                        <Avatar name={p.name} photo={photoByName[p.name]} size="xs" className="ring-1 ring-white dark:ring-slate-800" />
+                      )}
+                    </div>
                     <div>
                       <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                         {displayName}
@@ -105,7 +117,8 @@ function TopSeedsAllModal({ items, mode, title, onClose }) {
   );
 }
 
-export default function TopSeeds({ matches = [], players = [] }) {
+export default function TopSeeds({ matches = [], players = [], photoByName = {} }) {
+  const photos = Object.keys(photoByName).length > 0 ? photoByName : photoMap(players);
   const [showAll, setShowAll] = useState(false);
   const [period, setPeriod] = useState("today");
   const [mode, setMode] = useState("doubles");
@@ -222,65 +235,100 @@ export default function TopSeeds({ matches = [], players = [] }) {
                 })
               }
               className={
-                "text-left rounded-2xl p-3 relative overflow-hidden transition hover:opacity-90 " +
+                "text-left rounded-2xl p-3.5 sm:p-4 relative overflow-hidden transition hover:opacity-95 shadow-sm " +
                 (i === 1 ? "hidden sm:block " : "") +
                 (i === 0
                   ? "bg-orange-600 text-white"
                   : "bg-white dark:bg-slate-800 border dark:border-slate-700")
               }
             >
-              <div className="flex items-center justify-between mb-2">
-                <span
-                  className={
-                    "text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full " +
-                    (i === 0
-                      ? "bg-white/20"
-                      : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400")
-                  }
-                >
-                  Top Seed #{i + 1}
-                </span>
-                <span className="text-right">
-                  <span className="text-lg font-extrabold block">
-                    {(p.score || 0).toFixed(3)}
-                  </span>
-                  <span
-                    className={
-                      "text-[10px] uppercase tracking-wide " +
-                      (i === 0
-                        ? "text-orange-100"
-                        : "text-slate-400 dark:text-slate-500")
-                    }
-                  >
-                    Wilson Score
-                  </span>
-                </span>
-              </div>
               <Trophy
-                size={56}
+                size={64}
                 className={
-                  "absolute -bottom-2 -right-2 " +
-                  (i === 0 ? "text-white/10" : "text-slate-100 dark:text-slate-700")
+                  "absolute -bottom-3 -right-3 pointer-events-none " +
+                  (i === 0 ? "text-white/10" : "text-slate-100 dark:text-slate-700/40")
                 }
               />
-              <p
-                className={
-                  "font-bold text-sm relative leading-tight " +
-                  (i !== 0 ? "text-slate-900 dark:text-white" : "")
-                }
-              >
-                {displayName}
-              </p>
-              <p
-                className={
-                  "text-xs relative mt-0.5 " +
-                  (i === 0
-                    ? "text-orange-100"
-                    : "text-slate-500 dark:text-slate-400")
-                }
-              >
-                {p.wins}W – {p.losses}L · {p.played} played · {p.winRate}% win rate
-              </p>
+              <div className="relative z-10 flex items-start justify-between gap-3">
+                {/* Left Column: Pill + Name + Record */}
+                <div className="flex-1 min-w-0 pr-1">
+                  <span
+                    className={
+                      "inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full mb-1.5 " +
+                      (i === 0
+                        ? "bg-white/20 text-white"
+                        : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400")
+                    }
+                  >
+                    Top Seed #{i + 1}
+                  </span>
+                  <p
+                    className={
+                      "font-bold text-sm sm:text-base leading-snug truncate " +
+                      (i === 0 ? "text-white" : "text-slate-900 dark:text-white")
+                    }
+                    title={displayName}
+                  >
+                    {displayName}
+                  </p>
+                  <p
+                    className={
+                      "text-xs mt-1 leading-tight " +
+                      (i === 0
+                        ? "text-orange-100"
+                        : "text-slate-500 dark:text-slate-400")
+                    }
+                  >
+                    {p.wins}W – {p.losses}L · {p.played} played · {p.winRate}% win rate
+                  </p>
+                </div>
+
+                {/* Right Column: Score & Photos */}
+                <div className="flex flex-col items-end shrink-0 gap-1.5">
+                  <div className="text-right">
+                    <span className="text-lg sm:text-xl font-black block leading-none">
+                      {(p.score || 0).toFixed(3)}
+                    </span>
+                    <span
+                      className={
+                        "text-[9px] font-bold uppercase tracking-wide block mt-0.5 " +
+                        (i === 0
+                          ? "text-orange-100"
+                          : "text-slate-400 dark:text-slate-500")
+                      }
+                    >
+                      Wilson Score
+                    </span>
+                  </div>
+
+                  {/* Top Seed Photos */}
+                  <div className="flex items-center -space-x-2 pt-0.5">
+                    {mode === "doubles" ? (
+                      <>
+                        <Avatar
+                          name={p.players[0]}
+                          photo={photos[p.players[0]]}
+                          size="sm"
+                          className={`ring-2 ${i === 0 ? "ring-orange-600" : "ring-white dark:ring-slate-800"}`}
+                        />
+                        <Avatar
+                          name={p.players[1]}
+                          photo={photos[p.players[1]]}
+                          size="sm"
+                          className={`ring-2 ${i === 0 ? "ring-orange-600" : "ring-white dark:ring-slate-800"}`}
+                        />
+                      </>
+                    ) : (
+                      <Avatar
+                        name={p.name}
+                        photo={photos[p.name]}
+                        size="md"
+                        className={`ring-2 ${i === 0 ? "ring-orange-600" : "ring-white dark:ring-slate-800"}`}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
             </button>
           );
         })}
@@ -290,6 +338,7 @@ export default function TopSeeds({ matches = [], players = [] }) {
         <TopSeedsAllModal
           items={items}
           mode={mode}
+          photoByName={photos}
           title={`${periodLabel} Top ${modeLabel}`}
           onClose={() => setShowAll(false)}
         />

@@ -19,7 +19,7 @@ export default function Dashboard({ data, actions, onNavigate, onImport, isAdmin
       <SlotsTicker slots={data.slots} />
       <FilterBar period={period} onPeriod={setPeriod} onExport={exportAll} onImport={onImport} isAdmin={isSuperAdmin} />
       <StatCards matches={filtered} players={data.players} />
-      <TopSeeds matches={data.matches} players={data.players} />
+      <TopSeeds matches={data.matches} players={data.players} photoByName={photoByName} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <MatchList matches={data.matches} players={data.players} onDelete={actions.deleteMatch} onUpdate={actions.updateMatch} onLogMatch={() => onNavigate('log')} isAdmin={isAdmin} isSuperAdmin={isSuperAdmin} canEditVideo={canEditVideo} photoByName={photoByName} />
         <Leaderboard matches={data.matches} players={data.players} photoByName={photoByName} onViewProfile={onViewProfile} />
