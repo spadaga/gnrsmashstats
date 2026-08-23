@@ -45,10 +45,12 @@ export function ensureSchema() {
       score2 integer NOT NULL,
       match_date date NOT NULL,
       comment text NOT NULL DEFAULT '',
+      youtube_url text NOT NULL DEFAULT '',
       logged_at timestamptz NOT NULL DEFAULT now(),
       seq bigserial
     )`)
     await db.query(`CREATE INDEX IF NOT EXISTS matches_date_idx ON matches (match_date)`)
+    await db.query(`ALTER TABLE matches ADD COLUMN IF NOT EXISTS youtube_url text NOT NULL DEFAULT ''`)
     await db.query(`CREATE TABLE IF NOT EXISTS videos (
       id bigserial PRIMARY KEY,
       url text NOT NULL
@@ -103,7 +105,7 @@ async function selectPlayers(client) {
 
 async function selectMatches(client) {
   const { rows } = await client.query(`
-    SELECT m.id, m.score1, m.score2, m.match_date, m.comment, m.logged_at,
+    SELECT m.id, m.score1, m.score2, m.match_date, m.comment, m.youtube_url, m.logged_at,
            p1.name AS t1p1, p2.name AS t1p2, p3.name AS t2p1, p4.name AS t2p2
     FROM matches m
     JOIN players p1 ON p1.id = m.team1_player1_id
@@ -120,6 +122,7 @@ async function selectMatches(client) {
     score2: r.score2,
     date: toDateStr(r.match_date),
     comment: r.comment || '',
+    youtubeUrl: r.youtube_url || '',
     loggedAt: r.logged_at.toISOString(),
   }))
 }
@@ -191,10 +194,10 @@ export async function writeState(state) {
       await client.query(
         `INSERT INTO matches
           (id, team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id,
-           score1, score2, match_date, comment, logged_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+           score1, score2, match_date, comment, youtube_url, logged_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
         [m.id || crypto.randomUUID(), ids[0], ids[1], ids[2], ids[3],
-          m.score1, m.score2, m.date, m.comment || '', m.loggedAt || new Date().toISOString()]
+          m.score1, m.score2, m.date, m.comment || '', m.youtubeUrl || m.youtube_url || '', m.loggedAt || new Date().toISOString()]
       )
     }
 
@@ -271,9 +274,21 @@ export async function addMatch(match) {
   await pool.query(
     `INSERT INTO matches
       (id, team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id,
-       score1, score2, match_date, comment, logged_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-    [match.id, ids[0], ids[1], ids[2], ids[3], match.score1, match.score2, match.date, match.comment || '', match.loggedAt]
+       score1, score2, match_date, comment, youtube_url, logged_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+    [
+      match.id,
+      ids[0],
+      ids[1],
+      ids[2],
+      ids[3],
+      match.score1,
+      match.score2,
+      match.date,
+      match.comment || '',
+      match.youtubeUrl || match.youtube_url || '',
+      match.loggedAt,
+    ]
   )
   return selectMatches(pool)
 }
@@ -296,6 +311,10 @@ export async function updateMatch(id, updates) {
   if (updates.score2 !== undefined) { sets.push(`score2 = $${i++}`); values.push(updates.score2) }
   if (updates.date !== undefined) { sets.push(`match_date = $${i++}`); values.push(updates.date) }
   if (updates.comment !== undefined) { sets.push(`comment = $${i++}`); values.push(updates.comment) }
+  if (updates.youtubeUrl !== undefined || updates.youtube_url !== undefined) {
+    sets.push(`youtube_url = $${i++}`)
+    values.push(updates.youtubeUrl ?? updates.youtube_url ?? '')
+  }
   if (sets.length) {
     values.push(id)
     await pool.query(`UPDATE matches SET ${sets.join(', ')} WHERE id = $${i}`, values)

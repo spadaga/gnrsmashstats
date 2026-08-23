@@ -182,7 +182,7 @@ item_key, position, value jsonb)` generic-table design was replaced — see
   historical matches, exactly like the old behavior, but via a real foreign
   key instead of a name string baked into every match.
 - `matches(id uuid PK, team1_player1_id, team1_player2_id, team2_player1_id,
-team2_player2_id → players.id, score1, score2, match_date, comment,
+team2_player2_id → players.id, score1, score2, match_date, comment, youtube_url,
 logged_at, seq)`. Four fixed FK columns (not a join table) match the actual
   invariant `MatchForm.jsx` enforces: always exactly 2 vs 2, all 4 unique.
   Because matches reference players by `id`, **renaming a player is a single
@@ -538,20 +538,19 @@ Responds to period filter. Both numbers are clickable:
 
 ### `src/components/TopSeeds.jsx`
 
-Top pair(s) by win rate (`computeTopPairs`), scoped via **Today / Sunday / Week / Month / Year / Overall**
+Top seed(s) ranked by **Wilson Score Interval** for both **Doubles** (`computeTopPairs`) and **Singles** (`computeStats`), scoped via **Today / Sunday / Week / Month / Year / Overall**
 pills (`filterByPeriod`) — independent of the Dashboard's FilterBar period, always receives full
-`data.matches`. Defaults to **Today**. Seed #1 is an orange card. Labels are shortened on mobile.
+`data.matches` and `data.players`. Defaults to **Doubles** and **Today**. Seed #1 is an orange card. Labels are shortened on mobile.
 **Seed #2 card is hidden on mobile** (`hidden sm:block`) — only Top Seed #1 shows below the `sm` breakpoint.
 
-- **Qualify rule**: `minMatches = 3` is passed to `computeTopPairs` for all periods except Sunday
-  (`minMatches = 1`). Only `qualified` pairs are shown as a Top Seed. If no pair qualifies for the
-  selected period, shows a "No qualified pairs…" message instead of
-  an empty grid.
-- Each Top Seed card is clickable — opens `MatchesModal` with that pair's matches within the selected
-  period (`matchesForPair`).
-  "View All →" modal lists all pair combos **across all-time matches** (not scoped to the selected period,
-  and not gated by the qualify rule) — button visibility is likewise based on the all-time pair count.
-  Dark mode supported.
+- **Modes (Singles / Doubles)**:
+  - **Doubles**: Calculates top 2-player combinations using `computeTopPairs(filtered, 1)`. Clicking opens `MatchesModal` with `matchesForPair`.
+  - **Singles**: Calculates top individual players using `computeStats(filtered, players, 1)`. Clicking opens `MatchesModal` with `matchesForPlayer`.
+- **Calculation & Scoping**:
+  - **Sunday**: computes overall top seeds across all Sunday matches (`getDay() === 0`) all-time using Wilson score logic.
+  - **Week / Month / Year / Overall**: excludes Sunday matches (Monday to Saturday regular matches only, `getDay() !== 0`) and ranks by Wilson score (`wilsonScore(wins, played)`), so consistent high performers with strong records come out as top seeds.
+  - Cards display the **Wilson Score** prominently alongside win rate and W-L record.
+- "View All →" modal lists all singles/doubles competitors in the selected period ranked by Wilson score with their scores and records.
 
 ### `src/components/Leaderboard.jsx`
 
@@ -586,6 +585,9 @@ Dashboard's FilterBar period.
 
 ### `src/components/MatchList.jsx`
 
+- **Winning team always on the left**: In the "Recent Matches" list, the left side always displays the winning team in bold green (`text-emerald-600 dark:text-emerald-400`) with a green trophy icon and the winning score. The losing team and losing score are always positioned on the right side in muted slate color (`text-slate-500 dark:text-slate-400`).
+- **Player Avatars in Edit Match**: Receives `photoByName` from `Dashboard.jsx` and passes it to `MatchEditModal` / `PlayerPicker` so uploaded player photos are rendered in dropdown options and selected slots instead of initials circles.
+- **YouTube Video Watch Link**: When a match has a YouTube URL (`youtubeUrl`), a red YouTube play icon is displayed on the match row. It is visible to all users (not just admins) so anyone can click and watch the match video. Supported across MatchList, MatchesModal, and PlayerProfile.
 - **Search box sits above the "Recent Matches" heading.** Input text is bold (`font-bold text-sm
 text-slate-900 dark:text-white`) so a typed query stands out more than the surrounding UI.
 - **Abandoned matches** (`isAbandoned(m)` — winning score under 21, see Ranking above) get a highlighted
@@ -594,20 +596,16 @@ text-slate-900 dark:text-white`) so a typed query stands out more than the surro
   consistent wherever the match happens to be visible. A logged `comment` renders in
   `text-slate-600 dark:text-slate-300 italic font-medium` (was `text-slate-400`, too low-contrast in dark
   mode) so it stays legible in both themes.
-- Single 3-way mode pill row (no separate tabs row): **Today** (default) / **Head-to-Head** / **All
-  Matches**. Switching away from Head-to-Head clears the picked players.
+- 4-way mode pill row: **Today** (default) / **Sunday** / **Head-to-Head** / **All Matches**.
+  - **Sunday**: shows all Sunday matches grouped date-wise (descending order by date and time logged).
   - **All Matches**: reveals an optional from/to date-range pair inline (with a Clear button); leaving
     both blank shows every match.
   - **Head-to-Head**: reveals 4 player dropdowns (Player 1 & 2 vs Player 3 & 4, all unique). When all 4
     are chosen the list narrows to matches between that exact pair matchup (team sides ignored) and a
-    summary banner shows the record, e.g. "A & B lead C & D 3–1" (or tied / no matches yet).
+    summary banner shows the record, e.g. "A & B lead C & D 3–1" (or tied / no matches yet). Switching away from Head-to-Head clears the picked players.
 - Matches **grouped by date** with date headers. Today's header shows **"Today (Aug 10)"** in orange.
   The per-date match-count label is dark/bold (`text-slate-600 dark:text-slate-300`), not faint gray.
-- Edit (✏️, **super admin only**): inline form (`EditScoreForm`) with 4 player dropdowns (reassign either
-  team, all-4-unique validated) alongside the score inputs; validates scores 0–30, no ties. **Team pickers
-  are grouped left/right** (`grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr]`, each side's Player-&-Player pair
-  in its own `flex` group with a centered "vs" between them) so Team 1 and Team 2 stay visually distinct
-  and stack cleanly on narrow phones instead of the 4 dropdowns free-wrapping into a confusing order.
+- Edit (✏️, **super admin only**): opens `MatchEditModal` with avatar-aware `PlayerPicker` dropdowns; validates scores 0–30, no ties.
 - Delete (🗑️, **super admin only**): ConfirmDialog + local overlay during in-flight request.
 - Edit/Delete are gated purely by `canModify = isSuperAdmin` — regular admins can no longer edit/delete
   even today's matches (only the super admin, Suresh Padaga, has this). `isAdmin` still controls
@@ -618,12 +616,13 @@ text-slate-900 dark:text-white`) so a typed query stands out more than the surro
   banner shows the record, e.g. "A & B lead C & D 3–1" (or tied / no matches yet). `Clear` resets it.
 - Score box shows the point differential (`+{Math.abs(score1 - score2)}`) beneath the score, e.g. "21-17"
   with "+4" underneath — same for every match row across all three modes.
-- **Two sequence numbers per match**: a **day-local** number (`items.length - idx` within that date's
-  already-sorted-newest-first group — the first match of the day is `#1`, counting up across the day) and
-  an **overall** number (`seqById`, a `useMemo` over the full unfiltered `matches` prop, oldest match = `#1`,
-  identical across all 3 tabs for a given match since it's derived from the whole list, not the filtered
-  one). **Today** mode shows only the day-local number ("Match #22"); **Head-to-Head**/**All Matches** show
-  both ("Match #22 · Overall #126") since those views span multiple dates.
+- **Matches order (Descending by logged time)**: Within each date group, matches are sorted in descending order by `loggedAt` timestamp (the last logged match comes first at the top of the list). Older matches display further down.
+- **Two sequence numbers per match in descending display**:
+  - The first logged match chronologically receives number `#1` (for both day-local and overall).
+  - Matches are displayed in descending numerical order (e.g. `Match #5`, `Match #4`, `Match #3`, `Match #2`, `Match #1` from top to bottom).
+  - Day-local number: `items.length - idx` within that date's descending list.
+  - Overall number: `seqById`, a `useMemo` over the full unfiltered `matches` prop, where the oldest match = `#1` and the newest match = `#N`, so top-to-bottom items display descending overall numbers (e.g. `Overall #150`, `Overall #149`, ...).
+  - **Today** mode shows only the day-local number ("Match #22"); **Head-to-Head**/**All Matches** show both ("Match #22 · Overall #126").
 
 ### `src/components/VideoSection.jsx` / `PhotoGallery.jsx`
 
@@ -668,11 +667,8 @@ Takes `{ playerName, players, matches, slots, dues, onBack }` — no fetching of
 everything from the same `data` App.jsx already has in memory.
 
 - **Header card**: large `Avatar`, name, role badge (Admin for `SUPER_ADMIN_NAME` or any player with
-  `role === 'admin'`, else Contributor — same logic as `Players.jsx`), and a **"renewal date"**: looked up
-  by matching the player's name (case-insensitive) against `slots`' `name` field and showing that slot's
-  `endDate`, or "No active court slot" if nothing matches. This is a best-effort join — Court Slots and
-  Players are otherwise independent lists (a slot's `name` is free text, not a player reference), so a
-  slot only shows here if its name happens to match the player's name exactly (case-insensitively). Also
+  `role === 'admin'`, else Contributor — same logic as `Players.jsx`), and **court slot renewal**: looked up
+  by matching the player's name (case-insensitive) against `slots`' `name` field, showing `endDate` along with a **due days / days left badge** (`Expired Xd ago`, `Due today`, or `Xd left`), or "No active court slot" if nothing matches. Also
   shows their overall win rate if they're `qualified` (≥4 games) per `computeStats`, and, if a matching
   entry exists in `dues` (matched by exact name), a **Party dues: {count}** line with the comment if set —
   read-only here; editing lives only in Report's Party Dues tab (super-admin only).

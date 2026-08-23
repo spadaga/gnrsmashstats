@@ -15,7 +15,7 @@ export function isGuestName(name) {
 // simple win rate, as it accounts for sample size. A player with 2 wins in 2
 // games will have a lower score than a player with 20 wins in 25 games.
 // p̂ = win rate (wins/played), n = games played, z = 1.96 (for 95% confidence).
-function wilsonScore(wins, played) {
+export function wilsonScore(wins, played) {
   if (played === 0) return 0;
   const p_hat = wins / played;
   const n = played;
@@ -62,7 +62,8 @@ export function computeStats(
         stats[name] = { name, played: 0, wins: 0, losses: 0, pointDiff: 0 };
       stats[name].played++;
       stats[name].pointDiff += diff;
-      team1Won ? stats[name].wins++ : stats[name].losses++;
+      if (team1Won) stats[name].wins++;
+      else stats[name].losses++;
     }
     for (const name of m.team2) {
       if (isGuestName(name)) continue;
@@ -70,7 +71,8 @@ export function computeStats(
         stats[name] = { name, played: 0, wins: 0, losses: 0, pointDiff: 0 };
       stats[name].played++;
       stats[name].pointDiff -= diff;
-      team1Won ? stats[name].losses++ : stats[name].wins++;
+      if (team1Won) stats[name].losses++;
+      else stats[name].wins++;
     }
   }
 
@@ -83,9 +85,6 @@ export function computeStats(
   // Sort by Wilson Score, then fall back to wins and fewer losses.
   const byRankRule = (a, b) =>
     b.score - a.score || b.wins - a.wins || a.losses - b.losses;
-
-  // For players with few matches, sort by wins then losses.
-  const byWinsAndLosses = (a, b) => b.wins - a.wins || a.losses - b.losses;
 
   const qualified = all
     .filter((s) => s.played >= minMatches)
@@ -115,7 +114,8 @@ export function computePairStats(matches) {
       if (!stats[key])
         stats[key] = { players: pair, wins: 0, losses: 0, played: 0 };
       stats[key].played++;
-      won[ti] ? stats[key].wins++ : stats[key].losses++;
+      if (won[ti]) stats[key].wins++;
+      else stats[key].losses++;
     });
   }
   return Object.values(stats).map((s) => ({
@@ -169,7 +169,17 @@ export function computeRanks(rows) {
 export function sortMatchesDesc(matches) {
   return matches
     .slice()
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    .sort((a, b) => {
+      if (a.date !== b.date) {
+        return a.date < b.date ? 1 : -1;
+      }
+      const timeA = a.loggedAt ? new Date(a.loggedAt).getTime() : NaN;
+      const timeB = b.loggedAt ? new Date(b.loggedAt).getTime() : NaN;
+      if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) {
+        return timeB - timeA; // Newest / latest loggedAt first
+      }
+      return 0;
+    });
 }
 
 // All matches a given player appears in, on either team — used to drill down
@@ -219,7 +229,7 @@ export function filterByWeek(matches, which) {
     to = weekStart;
   }
   return matches.filter((m) => {
-    const d = new Date(m.date);
+    const d = new Date(`${m.date}T00:00:00`);
     return d >= from && (!to || d < to);
   });
 }
@@ -232,22 +242,21 @@ export function filterByPeriod(matches, period) {
     return matches.filter((m) => m.date === todayStr);
   }
   if (period === "sunday") {
-    // The 'T00:00:00' is important to avoid timezone shifts making it Saturday evening.
-    // getDay() is 0 for Sunday.
+    // 'T00:00:00' ensures local date parsing so Sunday (0) is accurate across all timezones.
     return matches.filter((m) => new Date(`${m.date}T00:00:00`).getDay() === 0);
   }
   return matches.filter((m) => {
-    const d = new Date(m.date);
+    const d = new Date(`${m.date}T00:00:00`);
     if (period === "year") return d.getFullYear() === now.getFullYear();
     if (period === "month")
       return (
         d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
       );
     if (period === "week") {
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - now.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-      return d >= weekStart;
+      const startOfWeekDate = new Date(now);
+      startOfWeekDate.setDate(now.getDate() - now.getDay());
+      startOfWeekDate.setHours(0, 0, 0, 0);
+      return d >= startOfWeekDate;
     }
     return true;
   });
@@ -320,4 +329,14 @@ export function computeHeadToHead(matches, a, b) {
     played: aWins.length + bWins.length,
     matches: { aWins: sortMatchesDesc(aWins), bWins: sortMatchesDesc(bWins) },
   };
+}
+
+export function formatYoutubeUrl(url) {
+  if (!url) return '';
+  const trimmed = String(url).trim();
+  if (!trimmed) return '';
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
 }

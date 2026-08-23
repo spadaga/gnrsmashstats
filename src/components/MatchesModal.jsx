@@ -1,4 +1,4 @@
-import { AlertTriangle, X } from 'lucide-react'
+import { AlertTriangle, CirclePlay as YoutubeIcon, X } from 'lucide-react'
 import { isAbandoned, sortMatchesDesc } from '../lib/ranking'
 
 // Newest date first; matches within a date keep their relative order (stable
@@ -51,6 +51,17 @@ export default function MatchesModal({ title, matches, onClose }) {
                           <span className={`flex-1 ${!team1Won ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}>
                             {m.team2.join(' & ')}
                           </span>
+                          {m.youtubeUrl && (
+                            <a
+                              href={formatYoutubeUrl(m.youtubeUrl)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="shrink-0 text-red-500 hover:text-red-600 transition p-0.5"
+                              title="Watch match video"
+                            >
+                              <YoutubeIcon size={14} />
+                            </a>
+                          )}
                         </div>
                         {abandoned && (
                           <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400 mt-1">

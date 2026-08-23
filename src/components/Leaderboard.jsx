@@ -9,6 +9,7 @@ import {
   matchesForPair,
 } from "../lib/ranking";
 import Avatar from "./Avatar";
+import Info from "./Info";
 import MatchesModal from "./MatchesModal";
 
 const MODES = [
@@ -75,9 +76,33 @@ export default function Leaderboard({
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-4">
       <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-        <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
-          <Medal size={16} className="text-orange-600" /> Leaderboard
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
+            <Medal size={16} className="text-orange-600" /> Leaderboard
+          </h2>
+          <Info>
+            <div className="p-2 max-w-xs text-xs text-slate-500 dark:text-slate-400 space-y-2">
+              <p className="font-bold text-slate-700 dark:text-slate-200">
+                How is ranking calculated?
+              </p>
+              <p>
+                Ranking is based on the Wilson Score Interval, a statistical
+                method that provides a confidence-adjusted win rate. It's more
+                reliable than a simple win percentage because it accounts for
+                the number of matches played.
+              </p>
+              <p>
+                Players with more matches and a high win rate will generally
+                rank higher. A minimum number of matches is required to be fully
+                ranked for most periods.
+              </p>
+              <p>
+                For Weekly, Monthly, and Yearly tabs, Sunday matches are
+                excluded from the calculation.
+              </p>
+            </div>
+          </Info>
+        </div>
         <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 rounded-full p-1">
           {MODES.map((m) => (
             <button
