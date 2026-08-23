@@ -469,7 +469,7 @@ export default function PlayerProfile({
     rec: recordFor(filterByPeriod(matches, p.key), playerName),
   }));
 
-  // Your Ranking: this player's rank/win% for the selected period, reusing
+  // Ranking: this player's rank/win% for the selected period, reusing
   // Report.jsx's period-tabs UI and the same 3-match qualify rule as
   // Leaderboard/TopSeeds.
   const rankPeriodMatches = applyPeriod(matches, rankPeriod, rankFrom, rankTo);
@@ -604,7 +604,7 @@ export default function PlayerProfile({
       <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-5">
         <div className="flex items-center gap-2 mb-3">
           <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
-            Your Ranking
+            Ranking
           </h2>
           <Info />
         </div>
