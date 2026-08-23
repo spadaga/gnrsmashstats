@@ -53,6 +53,7 @@ const PERIOD_CARDS = [
   { key: "week", label: "Week" },
   { key: "month", label: "Month" },
   { key: "year", label: "Year" },
+  { key: "all", label: "Overall" },
 ];
 
 function recordFor(matches, name) {
@@ -98,27 +99,33 @@ function PeriodCard({ label, rec, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="text-left rounded-xl border dark:border-slate-700 p-3 w-full cursor-pointer hover:border-orange-200 dark:hover:border-orange-800 hover:bg-orange-50 dark:hover:bg-orange-900/10 transition"
+      className="text-left rounded-xl border dark:border-slate-700 p-2.5 sm:p-3 w-full cursor-pointer hover:border-orange-200 dark:hover:border-orange-800 hover:bg-orange-50 dark:hover:bg-orange-900/10 transition flex flex-col justify-between"
     >
-      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
-        {label}
-      </p>
-      <p className="text-xl font-extrabold text-slate-800 dark:text-slate-100">
-        {rec.played}
-      </p>
-      <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-1">
-        played
-      </p>
-      <p className="text-xs text-slate-600 dark:text-slate-300">
-        <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-          {rec.wins}W
-        </span>{" "}
-        –{" "}
-        <span className="text-red-500 dark:text-red-400 font-bold">
-          {rec.losses}L
-        </span>
-      </p>
-      <p className="text-xs font-bold text-orange-600 mt-0.5">{rec.winRate}%</p>
+      <div>
+        <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1">
+          {label}
+        </p>
+        <div className="flex items-baseline gap-1">
+          <span className="text-lg sm:text-xl font-extrabold text-slate-800 dark:text-slate-100">
+            {rec.played}
+          </span>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500">
+            played
+          </span>
+        </div>
+      </div>
+      <div className="mt-1 pt-1 border-t border-slate-100 dark:border-slate-700/60 w-full">
+        <p className="text-[11px] text-slate-600 dark:text-slate-300">
+          <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+            {rec.wins}W
+          </span>{" "}
+          –{" "}
+          <span className="text-red-500 dark:text-red-400 font-bold">
+            {rec.losses}L
+          </span>
+        </p>
+        <p className="text-xs font-bold text-orange-600 mt-0.5">{rec.winRate}%</p>
+      </div>
     </button>
   );
 }
@@ -509,7 +516,7 @@ export default function PlayerProfile({
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300 mb-3">
           Activity Breakdown
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
           {periodRecords.map((p) => (
             <PeriodCard
               key={p.key}
