@@ -546,7 +546,7 @@ export default function MatchList({
                         )}
                       </div>
                       {/* Action buttons & YouTube video link */}
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 shrink-0">
                         {m.youtubeUrl && (
                           <a
                             href={formatYoutubeUrl(m.youtubeUrl)}
@@ -555,13 +555,13 @@ export default function MatchList({
                             className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition hover:scale-110 shrink-0"
                             title="Watch match on YouTube"
                           >
-                            <YoutubeIcon size={18} />
+                            <YoutubeIcon size={17} />
                           </a>
                         )}
                         {canEdit && (
                           <button
                             onClick={() => setEditingMatch(m)}
-                            className="p-1.5 rounded-lg text-slate-300 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30 transition"
+                            className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30 transition shrink-0"
                             title={
                               isSuperAdmin || canEditScore
                                 ? "Edit match score & YouTube video link"
@@ -574,7 +574,7 @@ export default function MatchList({
                         {canDelete && (
                           <button
                             onClick={() => setConfirm(m.id)}
-                            className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                            className="p-1 sm:p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition shrink-0"
                             title="Delete match"
                           >
                             <Trash2 size={13} />
