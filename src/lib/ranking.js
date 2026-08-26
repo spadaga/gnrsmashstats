@@ -1,7 +1,39 @@
 import { localISODate } from "./date";
 
-// Minimum matches a player needs before Win% ranking applies.
-const MIN_RANKED_MATCHES = 4;
+// Minimum matches a player needs before Win% ranking applies (default fallback).
+const MIN_RANKED_MATCHES = 3;
+
+// Regular players whose rankings come first in Week, Month, Year, and Overall views.
+export const REGULAR_PLAYER_NAMES = [
+  "Suresh Padaga",
+  "Srinivas Padaga",
+  "Sanjeev Kumar",
+  "Abdhulla",
+  "Abdhullah",
+  "Nayeem Abdhullah",
+  "HR",
+  "Pradeep Raghav",
+  "Narender",
+  "Narendra",
+  "Manikyam",
+];
+
+export function isRegularPlayer(name) {
+  if (!name) return false;
+  const n = String(name).trim().toLowerCase();
+  return REGULAR_PLAYER_NAMES.some((p) => p.trim().toLowerCase() === n);
+}
+
+// Period-specific ranking configuration:
+// - Today: min 3 matches (within that day only), ranked by Wilson score.
+// - Sunday: min 3 matches (across all Sunday matches), ranked by Wilson score.
+// - Week / Month / Year / Overall: min 10 matches, regular players ranked first.
+export function getRankingConfig(period) {
+  if (period === "today" || period === "sunday") {
+    return { minMatches: 3, prioritizeRegular: false };
+  }
+  return { minMatches: 10, prioritizeRegular: true };
+}
 
 // A "guest" is a one-off player name (e.g. "Guest1") added for a single
 // session rather than a real member — excluded from every ranking/leaderboard
@@ -31,17 +63,15 @@ export function wilsonScore(wins, played) {
 
 // Ranking: count wins/losses and total point difference per player across
 // all doubles matches they played in.
-// Qualified (played >= minMatches): sorted by Win% -> Wins -> fewer Losses.
-// Partial (1..minMatches-1 played): sorted the same way, but always ranked below qualified.
+// Qualified (played >= minMatches): sorted by Wilson Score -> Wins -> fewer Losses.
+// When prioritizeRegular is true (Week, Month, Year, Overall), regular players come first.
+// Partial (1..minMatches-1 played): sorted the same way, below qualified.
 // 0 played: unranked (qualified: false, played: 0), listed last.
-// players may be an array of { name, pin? } objects or plain strings.
-// minMatches defaults to the standard 4-match qualify rule; pass 1 (e.g. for a
-// single day's Leaderboard) to rank everyone who's played at all, with no
-// partial/needs-more bucket.
 export function computeStats(
   matches,
   players,
   minMatches = MIN_RANKED_MATCHES,
+  prioritizeRegular = false,
 ) {
   const names = players
     .map((p) => (typeof p === "string" ? p : p.name))
@@ -78,6 +108,7 @@ export function computeStats(
 
   const all = Object.values(stats).map((s) => ({
     ...s,
+    isRegular: isRegularPlayer(s.name),
     winRate: s.played ? Math.round((s.wins / s.played) * 100) : 0,
     score: wilsonScore(s.wins, s.played),
   }));
@@ -85,6 +116,42 @@ export function computeStats(
   // Sort by Wilson Score, then fall back to wins and fewer losses.
   const byRankRule = (a, b) =>
     b.score - a.score || b.wins - a.wins || a.losses - b.losses;
+
+  if (prioritizeRegular) {
+    const qualifiedRegular = all
+      .filter((s) => s.played >= minMatches && s.isRegular)
+      .sort(byRankRule)
+      .map((s) => ({ ...s, qualified: true }));
+    const qualifiedOther = all
+      .filter((s) => s.played >= minMatches && !s.isRegular)
+      .sort(byRankRule)
+      .map((s) => ({ ...s, qualified: true }));
+
+    const partialRegular = all
+      .filter((s) => s.played > 0 && s.played < minMatches && s.isRegular)
+      .sort(byRankRule)
+      .map((s) => ({ ...s, qualified: false }));
+    const partialOther = all
+      .filter((s) => s.played > 0 && s.played < minMatches && !s.isRegular)
+      .sort(byRankRule)
+      .map((s) => ({ ...s, qualified: false }));
+
+    const unrankedRegular = all
+      .filter((s) => s.played === 0 && s.isRegular)
+      .map((s) => ({ ...s, qualified: false }));
+    const unrankedOther = all
+      .filter((s) => s.played === 0 && !s.isRegular)
+      .map((s) => ({ ...s, qualified: false }));
+
+    return [
+      ...qualifiedRegular,
+      ...qualifiedOther,
+      ...partialRegular,
+      ...partialOther,
+      ...unrankedRegular,
+      ...unrankedOther,
+    ];
+  }
 
   const qualified = all
     .filter((s) => s.played >= minMatches)
@@ -120,24 +187,52 @@ export function computePairStats(matches) {
   }
   return Object.values(stats).map((s) => ({
     ...s,
+    isRegular:
+      isRegularPlayer(s.players[0]) && isRegularPlayer(s.players[1]),
     winRate: s.played ? Math.round((s.wins / s.played) * 100) : 0,
     score: wilsonScore(s.wins, s.played),
   }));
 }
 
-// Pair ranking for "Top Seed" style displays: win rate first, then wins, then
-// fewer losses, with the same min-4-games qualify rule as computeStats (by
-// default) — so a pair that just played (and won) 1 match can't outrank a
-// proven 100%-vs-67% record. Pass minMatches=1 (e.g. for a single day's
-// Leaderboard) to rank every pair that's played at all. computePairStats
-// sorts by raw win count instead; that's kept as-is for Report.jsx's
-// wins-based Pair Rankings tab.
-export function computeTopPairs(matches, minMatches = MIN_RANKED_MATCHES) {
-  // Sort by Wilson Score, then fall back to wins and fewer losses.
+// Pair ranking for "Top Seed" style displays: Wilson Score first, then wins, then
+// fewer losses. Pass prioritizeRegular=true for Week, Month, Year, and Overall.
+export function computeTopPairs(
+  matches,
+  minMatches = MIN_RANKED_MATCHES,
+  prioritizeRegular = false,
+) {
   const byRankRule = (a, b) =>
     b.score - a.score || b.wins - a.wins || a.losses - b.losses;
 
   const pairs = computePairStats(matches);
+
+  if (prioritizeRegular) {
+    const qualifiedRegular = pairs
+      .filter((p) => p.played >= minMatches && p.isRegular)
+      .sort(byRankRule)
+      .map((p) => ({ ...p, qualified: true }));
+    const qualifiedOther = pairs
+      .filter((p) => p.played >= minMatches && !p.isRegular)
+      .sort(byRankRule)
+      .map((p) => ({ ...p, qualified: true }));
+
+    const partialRegular = pairs
+      .filter((p) => p.played < minMatches && p.isRegular)
+      .sort(byRankRule)
+      .map((p) => ({ ...p, qualified: false }));
+    const partialOther = pairs
+      .filter((p) => p.played < minMatches && !p.isRegular)
+      .sort(byRankRule)
+      .map((p) => ({ ...p, qualified: false }));
+
+    return [
+      ...qualifiedRegular,
+      ...qualifiedOther,
+      ...partialRegular,
+      ...partialOther,
+    ];
+  }
+
   const qualified = pairs
     .filter((p) => p.played >= minMatches)
     .sort(byRankRule)
@@ -149,14 +244,24 @@ export function computeTopPairs(matches, minMatches = MIN_RANKED_MATCHES) {
   return [...qualified, ...partial];
 }
 
-// Standard competition ranking (1-2-2-4): rows tied on win rate share a rank,
-// and the next distinct rank skips the tied count. Works unmodified against
-// either computeStats or computeTopPairs output. It now ties based on the
-// calculated score, not the simple win rate.
+// Standard competition ranking (1-2-2-4): rows tied on Wilson score share a rank.
 export function computeRanks(rows) {
   const ranks = [];
   rows.forEach((s, i) => {
-    ranks.push(i > 0 && rows[i - 1].score === s.score ? ranks[i - 1] : i + 1);
+    if (i === 0) {
+      ranks.push(1);
+    } else {
+      const prev = rows[i - 1];
+      const sameScore = prev.score === s.score;
+      const sameTier =
+        prev.qualified === s.qualified &&
+        Boolean(prev.isRegular) === Boolean(s.isRegular);
+      if (sameScore && sameTier) {
+        ranks.push(ranks[i - 1]);
+      } else {
+        ranks.push(i + 1);
+      }
+    }
   });
   return ranks;
 }

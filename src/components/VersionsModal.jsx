@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Clock, RotateCcw, X } from 'lucide-react'
 import * as api from '../lib/api'
 import ConfirmDialog from './ConfirmDialog'
@@ -25,13 +26,24 @@ export default function VersionsModal({ open, onClose, onRestored }) {
   useEffect(() => {
     if (!open) return
     setLoading(true)
-    api.getVersions().then(setVersions).finally(() => setLoading(false))
+    api.getVersions()
+      .then(setVersions)
+      .catch(() => setVersions([]))
+      .finally(() => setLoading(false))
   }, [open])
 
   async function doRestore(ts) {
-    setConfirm(null); setLoading(true)
-    try { const state = await api.restoreVersion(ts); onRestored(state); onClose() }
-    finally { setLoading(false) }
+    setConfirm(null)
+    setLoading(true)
+    try {
+      await api.restoreVersion(ts)
+      onRestored?.()
+      onClose()
+    } catch (e) {
+      alert(e.message || 'Restore failed')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -43,10 +55,10 @@ export default function VersionsModal({ open, onClose, onRestored }) {
 
   if (!open) return null
 
-  return (
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" />
         <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6">
           <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"><X size={18} /></button>
           <div className="flex items-center gap-3 mb-5">
@@ -86,6 +98,7 @@ export default function VersionsModal({ open, onClose, onRestored }) {
         message="All current data will be replaced with this version. This cannot be undone."
         confirmLabel="Restore" danger={false}
         onConfirm={() => doRestore(confirm)} onCancel={() => setConfirm(null)} />
-    </>
+    </>,
+    document.body
   )
 }

@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Trophy, Users, User, X } from "lucide-react";
 import {
   computeStats,
   computeTopPairs,
   filterByPeriod,
+  getRankingConfig,
   matchesForPair,
   matchesForPlayer,
 } from "../lib/ranking";
@@ -27,19 +29,20 @@ const MODES = [
 ];
 
 function TopSeedsAllModal({ items, mode, title, onClose, photoByName = {} }) {
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-start justify-center p-4 overflow-y-auto"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-xs"
         onClick={onClose}
       />
       <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg mt-8 p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300 flex items-center gap-2">
-            <Trophy size={15} className="text-orange-600" /> {title} ({items.length})
+            <Trophy size={15} className="text-orange-600" /> {title} (
+            {items.length})
           </h3>
           <button
             onClick={onClose}
@@ -77,11 +80,26 @@ function TopSeedsAllModal({ items, mode, title, onClose, photoByName = {} }) {
                     <div className="flex items-center gap-1 shrink-0">
                       {mode === "doubles" ? (
                         <>
-                          <Avatar name={p.players[0]} photo={photoByName[p.players[0]]} size="xs" className="ring-1 ring-white dark:ring-slate-800" />
-                          <Avatar name={p.players[1]} photo={photoByName[p.players[1]]} size="xs" className="ring-1 ring-white dark:ring-slate-800" />
+                          <Avatar
+                            name={p.players[0]}
+                            photo={photoByName[p.players[0]]}
+                            size="xs"
+                            className="ring-1 ring-white dark:ring-slate-800"
+                          />
+                          <Avatar
+                            name={p.players[1]}
+                            photo={photoByName[p.players[1]]}
+                            size="xs"
+                            className="ring-1 ring-white dark:ring-slate-800"
+                          />
                         </>
                       ) : (
-                        <Avatar name={p.name} photo={photoByName[p.name]} size="xs" className="ring-1 ring-white dark:ring-slate-800" />
+                        <Avatar
+                          name={p.name}
+                          photo={photoByName[p.name]}
+                          size="xs"
+                          className="ring-1 ring-white dark:ring-slate-800"
+                        />
                       )}
                     </div>
                     <div>
@@ -89,7 +107,8 @@ function TopSeedsAllModal({ items, mode, title, onClose, photoByName = {} }) {
                         {displayName}
                       </p>
                       <p className="text-xs text-slate-400 dark:text-slate-500">
-                        {p.wins}W – {p.losses}L · {p.played} played · {p.winRate}% ·{" "}
+                        {p.wins}W – {p.losses}L · {p.played} played ·{" "}
+                        {p.winRate}% ·{" "}
                         <span className="font-bold text-slate-500 dark:text-slate-300">
                           {(p.score || 0).toFixed(3)}
                         </span>{" "}
@@ -113,12 +132,18 @@ function TopSeedsAllModal({ items, mode, title, onClose, photoByName = {} }) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
-export default function TopSeeds({ matches = [], players = [], photoByName = {} }) {
-  const photos = Object.keys(photoByName).length > 0 ? photoByName : photoMap(players);
+export default function TopSeeds({
+  matches = [],
+  players = [],
+  photoByName = {},
+}) {
+  const photos =
+    Object.keys(photoByName).length > 0 ? photoByName : photoMap(players);
   const [showAll, setShowAll] = useState(false);
   const [period, setPeriod] = useState("today");
   const [mode, setMode] = useState("doubles");
@@ -133,12 +158,21 @@ export default function TopSeeds({ matches = [], players = [], photoByName = {} 
     );
   }
 
+  const { minMatches, prioritizeRegular } = getRankingConfig(period);
+
   // Calculate top seeds using Wilson score logic
   let items = [];
   if (mode === "singles") {
-    items = computeStats(filtered, players, 1).filter((p) => p.played > 0);
+    items = computeStats(
+      filtered,
+      players,
+      minMatches,
+      prioritizeRegular,
+    ).filter((p) => p.played > 0);
   } else {
-    items = computeTopPairs(filtered, 1).filter((p) => p.played > 0);
+    items = computeTopPairs(filtered, minMatches, prioritizeRegular).filter(
+      (p) => p.played > 0,
+    );
   }
 
   const top2 = items.slice(0, 2);
@@ -173,7 +207,8 @@ export default function TopSeeds({ matches = [], players = [], photoByName = {} 
                 }
               >
                 <Icon size={12} />
-                <span className="sm:hidden">{m.shortLabel || m.label}</span><span className="hidden sm:inline">{m.label}</span>
+                <span className="sm:hidden">{m.shortLabel || m.label}</span>
+                <span className="hidden sm:inline">{m.label}</span>
               </button>
             );
           })}
@@ -211,7 +246,8 @@ export default function TopSeeds({ matches = [], players = [], photoByName = {} 
 
       {top2.length === 0 && (
         <p className="text-slate-400 text-sm text-center py-6 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-2xl">
-          No matches {period === "all" ? "yet" : `for ${periodLabel.toLowerCase()} yet`}.
+          No matches{" "}
+          {period === "all" ? "yet" : `for ${periodLabel.toLowerCase()} yet`}.
         </p>
       )}
 
@@ -246,7 +282,9 @@ export default function TopSeeds({ matches = [], players = [], photoByName = {} 
                 size={64}
                 className={
                   "absolute -bottom-3 -right-3 pointer-events-none " +
-                  (i === 0 ? "text-white/10" : "text-slate-100 dark:text-slate-700/40")
+                  (i === 0
+                    ? "text-white/10"
+                    : "text-slate-100 dark:text-slate-700/40")
                 }
               />
               <div className="relative z-10 flex items-start justify-between gap-3">
@@ -265,7 +303,9 @@ export default function TopSeeds({ matches = [], players = [], photoByName = {} 
                   <p
                     className={
                       "font-bold text-sm sm:text-base leading-snug truncate " +
-                      (i === 0 ? "text-white" : "text-slate-900 dark:text-white")
+                      (i === 0
+                        ? "text-white"
+                        : "text-slate-900 dark:text-white")
                     }
                     title={displayName}
                   >
@@ -279,7 +319,8 @@ export default function TopSeeds({ matches = [], players = [], photoByName = {} 
                         : "text-slate-500 dark:text-slate-400")
                     }
                   >
-                    {p.wins}W – {p.losses}L · {p.played} played · {p.winRate}% win rate
+                    {p.wins}W – {p.losses}L · {p.played} played · {p.winRate}%
+                    win rate
                   </p>
                 </div>
 

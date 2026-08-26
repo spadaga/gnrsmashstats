@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { AlertTriangle, X } from 'lucide-react'
 import YoutubeIcon from './YoutubeIcon'
 import { isAbandoned, sortMatchesDesc, formatYoutubeUrl } from '../lib/ranking'
@@ -15,9 +16,9 @@ function groupByDate(matches) {
 // same match-list look instead of each component rolling its own.
 export default function MatchesModal({ title, matches, onClose }) {
   const groups = groupByDate(matches)
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" onClick={onClose} />
       <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg mt-8 p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
@@ -79,6 +80,7 @@ export default function MatchesModal({ title, matches, onClose }) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

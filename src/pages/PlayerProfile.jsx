@@ -21,6 +21,7 @@ import {
   computePairStats,
   filterByPeriod,
   applyPeriod,
+  getRankingConfig,
   isAbandoned,
   matchesForPlayer,
   matchesForPair,
@@ -484,11 +485,16 @@ export default function PlayerProfile({
   }));
 
   // Ranking: this player's rank/win% for the selected period, reusing
-  // Report.jsx's period-tabs UI and the same 3-match qualify rule as
-  // Leaderboard/TopSeeds.
+  // Report.jsx's period-tabs UI and the configured qualify and regular-player rules.
   const rankPeriodMatches = applyPeriod(matches, rankPeriod, rankFrom, rankTo);
-  const rankMinMatches = rankPeriod === "today" ? 1 : 3;
-  const rankStats = computeStats(rankPeriodMatches, players, rankMinMatches);
+  const { minMatches: rankMinMatches, prioritizeRegular } =
+    getRankingConfig(rankPeriod);
+  const rankStats = computeStats(
+    rankPeriodMatches,
+    players,
+    rankMinMatches,
+    prioritizeRegular,
+  );
   const ranks = computeRanks(rankStats);
   const myStatIdx = rankStats.findIndex((s) => s.name === playerName);
   const myStat = myStatIdx === -1 ? null : rankStats[myStatIdx];

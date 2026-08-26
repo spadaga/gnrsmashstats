@@ -291,33 +291,28 @@ the connected Blob store) and existing public `https://...` Blob URLs (preserves
 the URL and writes only metadata to Neon). It deliberately does not delete old
 Blob objects during a full import, preventing damage to the original store.
 
-## Ranking
+### Ranking
 
 `src/lib/ranking.js`:
 
+- `REGULAR_PLAYER_NAMES` / `isRegularPlayer(name)` — identifies core regular players (`Suresh Padaga`, `Srinivas Padaga`, `Sanjeev Kumar`, `Abdhulla`/`Abdhullah`/`Nayeem Abdhullah`, `HR`/`Pradeep Raghav`, `Narender`/`Narendra`, `Manikyam`). In Week, Month, Year, and Overall views, regular players are prioritized first in the rankings.
+- `getRankingConfig(period)` — returns `{ minMatches, prioritizeRegular }`:
+  - `today`: min 3 matches on that day only, `prioritizeRegular: false`.
+  - `sunday`: min 3 matches across all Sunday matches, `prioritizeRegular: false`.
+  - `week` / `month` / `year` / `all`: min 10 matches (excludes Sundays), `prioritizeRegular: true`.
 - `isGuestName(name)` — `true` for a one-off player name like `Guest1`/`Guest 2` (regex
-  `/^guest\s*\d*$/i`). There's no DB flag for this, just the naming convention. `computeStats` skips
-  guest names when seeding from `players` and when discovering names from matches (a real player's W/L
-  against a guest still counts for the real player); `computePairStats` skips a pair entirely if either
-  member is a guest. This is how a pair like "Guest1 & Sepuri" gets excluded from every
-  ranking/leaderboard display while still showing normally in match lists/history (`MatchList`,
-  `MatchesModal`, etc. show every match regardless of guest involvement — only rankings filter them out).
-- `computeStats(matches, players, minMatches = 4)` — wins/losses/pointDiff/winRate/played, plus a
-  `score` and `qualified: boolean`. Ranking is now based on the **Wilson Score Interval**, a
-  statistical method that provides a confidence-adjusted win rate, rewarding consistent performers with
-  larger sample sizes over lucky outliers. Players are sorted by this score. Players with `played >=
-minMatches` are "qualified"; players below that are sorted the same way but always listed below qualified
-  players. `minMatches` defaults to 4 for `Report.jsx`'s Individual Rankings and `PlayerProfile`'s overall
-  win-rate line; `Leaderboard`/`TopSeeds` pass `3` for most periods.
-- `computeRanks(rows)` — standard competition ranking (1-2-2-4): rows tied on their Wilson `score` share
-  a rank, and the next distinct rank skips the tied count. Works unmodified against `computeStats` or
-  `computeTopPairs` output. Shared by `Leaderboard` (singles + doubles) and `PlayerProfile`'s per-period
+  `/^guest\s*\d*$/i`). Excluded from ranking and leaderboard displays.
+- `computeStats(matches, players, minMatches = 3, prioritizeRegular = false)` — wins/losses/pointDiff/winRate/played, plus a
+  `score` and `qualified: boolean`. Ranking uses the **Wilson Score Interval** (lower bound of 95% confidence interval). When `prioritizeRegular` is true, qualified regular players come first (sorted by Wilson score), followed by other qualified players, followed by partial players.
+- `computeTopPairs(matches, minMatches = 3, prioritizeRegular = false)` — pairs ranking using Wilson score with regular pair prioritization in long-term periods.
+- `computeRanks(rows)` — standard competition ranking (1-2-2-4): rows tied on their Wilson `score` and tier share
+  a rank, and the next distinct rank skips the tied count. Shared by `Leaderboard` (singles + doubles) and `PlayerProfile`'s per-period
   "Your Ranking" card.
 - `applyPeriod(matches, period, from, to)` — like `filterByPeriod` but also supports an explicit
   `'custom'` from/to date range. Backs the period-tab UI (`PeriodTabs`, exported from `Report.jsx`) shared
   by `Report.jsx`'s Individual/Pair Rankings tabs and `PlayerProfile`'s "Your Ranking" card.
-- `filterByPeriod(matches, period)` — keys: `'all'` / `'today'` / `'year'` / `'month'` / `'week'`
-- `filterByWeek(matches, which)` — keys: `'current'` / `'last'`. Week starts Sunday. No longer used by any
+- `filterByPeriod(matches, period)` — keys: `'all'` / `'today'` / `'sunday'` / `'year'` / `'month'` / `'week'`
+- `filterByWeek(matches, which)` — keys: `'current'` / `'last'`. Week starts Sunday.
   component (`TopSeeds` moved to the shared `filterByPeriod` tab set below) — kept as a ranking.js export
   in case a This-Week/Last-Week comparison view is added back later.
 - `isAbandoned(m)` — `true` when neither side's score reached 21 (`Math.max(m.score1, m.score2) < 21`),

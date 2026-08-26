@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { CheckCircle2, KeyRound, X } from 'lucide-react'
 import { findAdminByPin } from '../lib/admins'
 
@@ -31,10 +32,10 @@ export default function LoginModal({ open, players, onLogin, onClose }) {
   }
 
   if (!open) return null
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" />
       <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-xs p-8">
         <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"><X size={18} /></button>
         <div className="flex flex-col items-center text-center">
@@ -63,6 +64,7 @@ export default function LoginModal({ open, players, onLogin, onClose }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

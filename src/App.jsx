@@ -297,7 +297,7 @@ export default function App() {
       />
 
       {busy && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
           <div className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl px-6 py-4">
             <Loader2 size={22} className="animate-spin text-orange-600" />
             <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -308,7 +308,7 @@ export default function App() {
       )}
       {toast && (
         <div
-          className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-sm font-medium text-white shadow-lg ${
+          className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-full text-sm font-medium text-white shadow-lg ${
             toast.type === "error" ? "bg-red-600" : "bg-emerald-600"
           }`}
         >

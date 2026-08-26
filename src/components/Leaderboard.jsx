@@ -5,6 +5,7 @@ import {
   computeTopPairs,
   computeRanks,
   filterByPeriod,
+  getRankingConfig,
   matchesForPlayer,
   matchesForPair,
 } from "../lib/ranking";
@@ -36,8 +37,7 @@ export default function Leaderboard({
   const [period, setPeriod] = useState("today");
   const [drilldown, setDrilldown] = useState(null);
   let filtered = filterByPeriod(matches, period);
-  const minMatches = period === "sunday" ? 1 : 3;
-
+  const { minMatches, prioritizeRegular } = getRankingConfig(period);
   let playersForPeriod = players;
   if (period === "today") {
     playersForPeriod = [
@@ -50,20 +50,24 @@ export default function Leaderboard({
     const weekdayPlayerNames = new Set(
       filtered.flatMap((m) => [...m.team1, ...m.team2]),
     );
-    playersForPeriod = players.filter((p) => weekdayPlayerNames.has(p.name));
+    playersForPeriod = players.filter((p) =>
+      weekdayPlayerNames.has(typeof p === "string" ? p : p.name),
+    );
   } else if (period === "sunday") {
     const sundayPlayerNames = new Set(
       filtered.flatMap((m) => [...m.team1, ...m.team2]),
     );
-    playersForPeriod = players.filter((p) => sundayPlayerNames.has(p.name));
+    playersForPeriod = players.filter((p) =>
+      sundayPlayerNames.has(typeof p === "string" ? p : p.name),
+    );
   }
 
   let rows =
     mode === "singles"
-      ? computeStats(filtered, playersForPeriod, minMatches)
-      : computeTopPairs(filtered, minMatches);
+      ? computeStats(filtered, playersForPeriod, minMatches, prioritizeRegular)
+      : computeTopPairs(filtered, minMatches, prioritizeRegular);
 
-  if (period !== "today") rows = rows.filter((r) => r.played > 0);
+  rows = rows.filter((r) => r.played > 0);
   const ranks = computeRanks(rows);
 
   return (
@@ -86,7 +90,8 @@ export default function Leaderboard({
                   : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               }`}
             >
-              <span className="sm:hidden">{m.shortLabel || m.label}</span><span className="hidden sm:inline">{m.label}</span>
+              <span className="sm:hidden">{m.shortLabel || m.label}</span>
+              <span className="hidden sm:inline">{m.label}</span>
             </button>
           ))}
         </div>

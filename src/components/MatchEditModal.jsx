@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Save, X } from "lucide-react";
 import PlayerPicker from "./PlayerPicker";
 import YoutubeIcon from "./YoutubeIcon";
@@ -98,12 +99,12 @@ export default function MatchEditModal({
   const inputCls =
     "w-full border dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-400";
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-start justify-center p-4 overflow-y-auto"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" />
       <form
         onSubmit={handleSubmit}
         className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl mt-8 p-6 space-y-4"
@@ -271,6 +272,7 @@ export default function MatchEditModal({
           </button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }

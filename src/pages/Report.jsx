@@ -16,6 +16,7 @@ import {
   computeHeadToHead,
   computeAbandonedMatches,
   applyPeriod,
+  getRankingConfig,
   matchesForPlayer,
   matchesForPair,
   formatYoutubeUrl,
@@ -86,7 +87,9 @@ export function PeriodTabs({
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
-            <span className="sm:hidden">{p.shortLabel || p.short || p.label}</span>
+            <span className="sm:hidden">
+              {p.shortLabel || p.short || p.label}
+            </span>
             <span className="hidden sm:inline">{p.label}</span>
           </button>
         ))}
@@ -498,7 +501,8 @@ function IndividualSection({ matches, players }) {
   const [to, setTo] = useState("");
   const [selected, setSelected] = useState(null);
   const filtered = applyPeriod(matches, period, from, to);
-  const stats = computeStats(filtered, players)
+  const { minMatches, prioritizeRegular } = getRankingConfig(period);
+  const stats = computeStats(filtered, players, minMatches, prioritizeRegular)
     .filter((s) => s.played > 0)
     .slice(0, 10);
   const max = Math.max(1, ...stats.map((s) => s.wins));

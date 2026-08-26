@@ -1,12 +1,13 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Activity, Trophy } from 'lucide-react'
 import MatchesModal from './MatchesModal'
 import Avatar from './Avatar'
 
 function PlayersModal({ players, onClose }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" onClick={onClose} />
       <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm mt-8 p-5">
         <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300 mb-4">
           Total Players <span className="text-slate-400 dark:text-slate-500 font-medium normal-case">({players.length})</span>
@@ -20,7 +21,8 @@ function PlayersModal({ players, onClose }) {
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
