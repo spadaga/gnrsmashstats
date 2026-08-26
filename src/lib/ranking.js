@@ -331,6 +331,42 @@ export function computeHeadToHead(matches, a, b) {
   };
 }
 
+export function isValidYoutubeUrl(url) {
+  if (!url) return true; // Optional: empty is valid
+  const trimmed = String(url).trim();
+  if (!trimmed) return true;
+
+  const formatted = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  try {
+    const parsed = new URL(formatted);
+    const host = parsed.hostname.toLowerCase();
+    const isYouTube =
+      host === "youtube.com" ||
+      host.endsWith(".youtube.com") ||
+      host === "youtube-nocookie.com" ||
+      host.endsWith(".youtube-nocookie.com");
+
+    if (isYouTube) {
+      if (parsed.pathname === "/watch") {
+        const v = parsed.searchParams.get("v");
+        return Boolean(v && v.trim().length > 0);
+      }
+      const match = parsed.pathname.match(/^\/(?:shorts|embed|live|v)\/([a-zA-Z0-9_-]+)/);
+      return Boolean(match && match[1]);
+    }
+
+    if (host === "youtu.be" || host.endsWith(".youtu.be")) {
+      const id = parsed.pathname.replace(/^\/+/, "").split("/")[0];
+      return Boolean(id && id.trim().length > 0);
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export function formatYoutubeUrl(url) {
   if (!url) return '';
   const trimmed = String(url).trim();

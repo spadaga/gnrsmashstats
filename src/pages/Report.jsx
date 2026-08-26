@@ -7,8 +7,8 @@ import {
   Save,
   Trash2,
   X,
-  CirclePlay as YoutubeIcon,
 } from "lucide-react";
+import YoutubeIcon from "../components/YoutubeIcon";
 import {
   computeStats,
   computePairStats,
@@ -18,6 +18,7 @@ import {
   applyPeriod,
   matchesForPlayer,
   matchesForPair,
+  formatYoutubeUrl,
 } from "../lib/ranking";
 import ConfirmDialog from "../components/ConfirmDialog";
 

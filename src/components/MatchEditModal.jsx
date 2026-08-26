@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { Save, X } from "lucide-react";
 import PlayerPicker from "./PlayerPicker";
 import YoutubeIcon from "./YoutubeIcon";
-import { formatYoutubeUrl } from "../lib/ranking";
-
+import { formatYoutubeUrl, isValidYoutubeUrl } from "../lib/ranking";
 const MAX_SCORE = 30;
 
 export default function MatchEditModal({
@@ -49,18 +48,24 @@ export default function MatchEditModal({
 
   function handleSubmit(e) {
     e.preventDefault();
+    const rawYoutube = (form.youtubeUrl || "").trim();
+    if (rawYoutube && !isValidYoutubeUrl(rawYoutube)) {
+      return setError(
+        "Please enter a valid YouTube URL (e.g. youtube.com/watch?v=... or youtu.be/...)",
+      );
+    }
     if (videoOnly) {
       // In video-only mode, only update the YouTube URL
       onSave(match.id, {
-        youtubeUrl: formatYoutubeUrl(form.youtubeUrl),
+        youtubeUrl: rawYoutube ? formatYoutubeUrl(rawYoutube) : "",
       });
       return;
     }
 
-    const { p1, p2, p3, p4, score1, score2, comment, youtubeUrl } = form;
+    const { p1, p2, p3, p4, score1, score2, comment } = form;
     const names = [p1, p2, p3, p4];
     if (names.some((n) => !n))
-      return setError("All four players must be selected.");
+      return setError("All four players are required.");
     if (new Set(names).size < 4)
       return setError("All four players must be different.");
 
@@ -86,7 +91,7 @@ export default function MatchEditModal({
       score1: s1,
       score2: s2,
       comment: comment.trim(),
-      youtubeUrl: formatYoutubeUrl(youtubeUrl),
+      youtubeUrl: rawYoutube ? formatYoutubeUrl(rawYoutube) : "",
     });
   }
 
@@ -116,7 +121,8 @@ export default function MatchEditModal({
             </h3>
             {videoOnly && (
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                As a Video Editor, you can add or update the YouTube video link for this match.
+                As a Video Editor, you can add or update the YouTube video link
+                for this match.
               </p>
             )}
           </div>

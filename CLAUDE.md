@@ -77,14 +77,13 @@ The `players` resource stored in Postgres is an ordered array of objects:
 - Players **without** a `pin` = read-only.
 - PIN = last 4 digits of mobile number.
 - Old string-array format auto-migrates to objects on first read.
-- Optional `role` field: `'admin'` promotes a player to show the **Admin** badge on `Players.jsx` and
-  their `PlayerProfile`; anything else (including absent) shows **Contributor**. This is a _display_
-  badge only — it does **not** grant write access or change login behavior, both of which stay governed
-  by `pin` (can log in / log today's matches) and by being the fixed super admin (full write access, see
-  `SUPER_ADMIN_NAME` below). Only the super admin can change another player's `role`, via a "Make Admin" /
-  "Demote" toggle next to each row in `Players.jsx` (calls `PUT /api/players/:name` with `{ role: 'admin' }`
-  or `{ role: '' }`). Suresh Padaga's own row always shows Admin and has no toggle — his badge is derived
-  from his name, not this field.
+- Optional `role` field: `'admin'`, `'score_editor'`, `'video_editor'`, `'match_logger'`, or `''`/`'contributor'`.
+  - **Admin** (`admin`, fixed for Suresh Padaga): Full administrative access (modify all matches/scores/videos, manage players, slots, dues, snapshots, import/export).
+  - **Score & Video Editor** (`score_editor`, Srinivas Padaga): Can log matches, modify match scores/details on existing matches, and add/update YouTube video URLs.
+  - **Video Editor** (`video_editor`, Sanjeev Kumar, Abdhulla): Can log matches and add/update YouTube video URLs on existing matches (cannot modify scores).
+  - **Match Logger** (`match_logger`, Narendra, HR): Can log matches only (cannot edit existing matches or video URLs).
+  - **Contributor** (default): Standard player.
+  - The super admin can change any player's role via the dropdown on `Players.jsx` (calls `PUT /api/players/:name` with `{ role: ... }`).
 - Optional `photo` field: a small downscaled JPEG data URL (`data:image/jpeg;base64,...`), set via
   `Players.jsx`'s avatar picker (super-admin only). Stored inline in the player's Postgres JSON value —
   no separate blob/file, unlike match photos — since avatars are capped to 300px/~150KB so the whole
@@ -108,26 +107,26 @@ The `players` resource stored in Postgres is an ordered array of objects:
   shows name with ✅ → logs in automatically after 700 ms.
 - Session persisted in `localStorage.adminName` — survives page reload until
   **Logout** is clicked (which clears localStorage).
-- **Write access is mostly super-admin-only** (Suresh Padaga = `isSuperAdmin` in `App.jsx`), with two
-  carve-outs for any regular admin (`isAdmin`, i.e. anyone with a valid PIN): logging a **new** match for
-  **any past date, not just today** (`MatchForm`'s date field has no admin-tier restriction — any admin
-  can log/back-date a match, capped only at `max=today`, no future dates), and adding/editing/deleting
-  **Party Dues** entries (Report page's Party Dues tab, gated on `isAdmin`, not `isSuperAdmin`). Editing/
-  deleting matches, add/delete/edit players, add/edit/delete slots/videos/photos, import/export snapshots,
-  and restoring versions remain super-admin-only — `isAdmin` alone doesn't unlock those UIs (see
-  components below, each gated on `isSuperAdmin`).
+- **Write access is partitioned by role**:
+  - Super admin (`Suresh Padaga` = `isSuperAdmin`): full access.
+  - Score & Video Editor (`Srinivas Padaga`): log matches, modify match scores and video links.
+  - Video Editors (`Sanjeev Kumar`, `Abdhulla`): log matches, update YouTube video links.
+  - Match Loggers (`Narendra`, `HR`): log matches only.
+  - Any admin with a PIN can also manage **Party Dues** entries.
 - **Super-admin identity is keyed on name, not PIN**: `isSuperAdmin = adminName === SUPER_ADMIN_NAME`
-  (`'Suresh Padaga'`). PINs are meant to be changeable by their owner (last 4 digits of mobile, and mobile
-  numbers change) — an earlier version of this check also required `pin === '2669'`, which meant Suresh
-  updating his own PIN silently stripped his super-admin rights on next login. Keying on name alone fixes
-  that; the only remaining edge case is if Suresh Padaga's own player entry is ever renamed, which would
-  need `SUPER_ADMIN_NAME` updated to match (same caveat the old PIN-based check had, just moved).
+  (`'Suresh Padaga'`).
 
 `src/lib/admins.js` helpers:
 
-- `SUPER_ADMIN_NAME` — the one player name with full write access (`'Suresh Padaga'`). Imported by
-  `App.jsx` (for `isSuperAdmin`) and by `Players.jsx`/`PlayerProfile.jsx` (to always show his badge as
-  Admin, un-editable, regardless of the `role` field).
+- `SUPER_ADMIN_NAME` — `'Suresh Padaga'` (full write access).
+- `SCORE_ADMIN_NAMES` — `['Srinivas Padaga']`
+- `VIDEO_ADMIN_NAMES` — `['Sanjeev Kumar', 'Abdhulla', 'Abdullah']`
+- `MATCH_LOGGER_NAMES` — `['Narendra', 'Narender', 'HR', 'Pradeep Raghav']`
+- `getPlayerRole(player)` — resolves player's role (admin, score_editor, video_editor, match_logger, contributor)
+- `canLogMatch(adminName, players)` — whether user can log new matches
+- `canEditScore(adminName, players)` — whether user can modify scores of existing matches
+- `canManageVideoUrls(adminName, players)` — whether user can add/update YouTube video URLs
+- `isMatchAdmin(adminName, players)` — whether user has any match edit capabilities
 - `getAdmins(players)` — players with a pin
 - `findAdminByPin(players, pin)` — lookup by PIN (used by login)
 - `verifyPin(players, name, pin)` — verify name+pin

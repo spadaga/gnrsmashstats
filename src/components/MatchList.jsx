@@ -80,8 +80,6 @@ function PlayerSelect({ value, onChange, options, placeholder }) {
   );
 }
 
-const pairKey = (a, b) => [a, b].sort().join("|");
-
 export default function MatchList({
   matches,
   players,
@@ -90,12 +88,14 @@ export default function MatchList({
   onLogMatch,
   isAdmin,
   isSuperAdmin,
+  canEditScore,
   canEditVideo,
   photoByName,
 }) {
   const [mode, setMode] = useState("today");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [selectedPlayer, setSelectedPlayer] = useState("");
   const [search, setSearch] = useState("");
   const [confirm, setConfirm] = useState(null);
   const [editingMatch, setEditingMatch] = useState(null);
@@ -140,8 +140,8 @@ export default function MatchList({
 
   const [ha, hb, hc, hd] = h2h;
   const h2hChosen = h2h.filter(Boolean);
-  const h2hActive =
-    mode === "h2h" && h2hChosen.length === 4 && new Set(h2hChosen).size === 4;
+  const teamA = [ha, hb].filter(Boolean);
+  const teamB = [hc, hd].filter(Boolean);
 
   function selectMode(next) {
     setMode(next);
@@ -149,14 +149,30 @@ export default function MatchList({
   }
   const h2hOptions = (current) =>
     playerNames.filter((p) => p === current || !h2hChosen.includes(p));
-  const selA = h2hActive ? pairKey(ha, hb) : null;
-  const selB = h2hActive ? pairKey(hc, hd) : null;
 
   const visible = matches.filter((m) => {
     if (mode === "today" && m.date !== todayISO()) return false;
-    if (mode === "sunday" && new Date(`${m.date}T00:00:00`).getDay() !== 0) return false;
-    if (mode === "all" && ((from && m.date < from) || (to && m.date > to)))
+    if (mode === "sunday" && new Date(`${m.date}T00:00:00`).getDay() !== 0)
       return false;
+    if (mode === "all") {
+      if (from && to) {
+        const minDate = from <= to ? from : to;
+        const maxDate = from <= to ? to : from;
+        if (m.date < minDate || m.date > maxDate) return false;
+      } else if (from && !to) {
+        if (m.date !== from) return false;
+      } else if (!from && to) {
+        if (m.date !== to) return false;
+      }
+    }
+    if (selectedPlayer) {
+      if (
+        !m.team1.includes(selectedPlayer) &&
+        !m.team2.includes(selectedPlayer)
+      ) {
+        return false;
+      }
+    }
     if (search) {
       const q = search.trim().toLowerCase();
       const haystack = [...m.team1, ...m.team2, m.comment || ""]
@@ -164,36 +180,98 @@ export default function MatchList({
         .toLowerCase();
       if (!haystack.includes(q)) return false;
     }
-    if (h2hActive) {
-      const mA = pairKey(m.team1[0], m.team1[1]);
-      const mB = pairKey(m.team2[0], m.team2[1]);
-      const isMatchup =
-        (mA === selA && mB === selB) || (mA === selB && mB === selA);
-      if (!isMatchup) return false;
+    if (mode === "h2h" && (teamA.length > 0 || teamB.length > 0)) {
+      if (teamA.length > 0 && teamB.length > 0) {
+        const team1HasA = teamA.every((p) => m.team1.includes(p));
+        const team2HasA = teamA.every((p) => m.team2.includes(p));
+        const team1HasB = teamB.every((p) => m.team1.includes(p));
+        const team2HasB = teamB.every((p) => m.team2.includes(p));
+
+        const matchA1B2 = team1HasA && team2HasB;
+        const matchA2B1 = team2HasA && team1HasB;
+        if (!matchA1B2 && !matchA2B1) return false;
+      } else if (teamA.length > 0) {
+        const team1HasA = teamA.every((p) => m.team1.includes(p));
+        const team2HasA = teamA.every((p) => m.team2.includes(p));
+        if (!team1HasA && !team2HasA) return false;
+      } else if (teamB.length > 0) {
+        const team1HasB = teamB.every((p) => m.team1.includes(p));
+        const team2HasB = teamB.every((p) => m.team2.includes(p));
+        if (!team1HasB && !team2HasB) return false;
+      }
     }
     return true;
   });
   const groups = groupByDate(visible);
 
   let h2hSummary = null;
-  if (h2hActive) {
-    let winsA = 0,
-      winsB = 0;
-    visible.forEach((m) => {
-      const team1Won = m.score1 > m.score2;
-      const team1IsA = pairKey(m.team1[0], m.team1[1]) === selA;
-      if (team1Won === team1IsA) winsA++;
-      else winsB++;
-    });
-    const labelA = ha + " & " + hb;
-    const labelB = hc + " & " + hd;
-    if (winsA === 0 && winsB === 0)
-      h2hSummary = "No matches yet between " + labelA + " and " + labelB + ".";
-    else if (winsA === winsB)
-      h2hSummary = labelA + " vs " + labelB + ": tied " + winsA + "–" + winsB + ".";
-    else if (winsA > winsB)
-      h2hSummary = labelA + " lead " + labelB + " " + winsA + "–" + winsB + ".";
-    else h2hSummary = labelB + " lead " + labelA + " " + winsB + "–" + winsA + ".";
+  if (mode === "h2h" && (teamA.length > 0 || teamB.length > 0)) {
+    if (teamA.length > 0 && teamB.length > 0) {
+      let winsA = 0,
+        winsB = 0;
+      visible.forEach((m) => {
+        const team1Won = m.score1 > m.score2;
+        const team1HasA = teamA.every((p) => m.team1.includes(p));
+        if (team1HasA) {
+          if (team1Won) winsA++;
+          else winsB++;
+        } else {
+          if (!team1Won) winsA++;
+          else winsB++;
+        }
+      });
+      const labelA = teamA.join(" & ");
+      const labelB = teamB.join(" & ");
+      const count = visible.length;
+      const matchWord = count === 1 ? "match" : "matches";
+      if (count === 0) {
+        h2hSummary = `No matches found between ${labelA} and ${labelB}.`;
+      } else if (winsA === winsB) {
+        h2hSummary = `${labelA} vs ${labelB}: tied ${winsA}–${winsB} (${count} ${matchWord}).`;
+      } else if (winsA > winsB) {
+        h2hSummary = `${labelA} leads ${labelB} ${winsA}–${winsB} (${count} ${matchWord}).`;
+      } else {
+        h2hSummary = `${labelB} leads ${labelA} ${winsB}–${winsA} (${count} ${matchWord}).`;
+      }
+    } else if (teamA.length > 0) {
+      let wins = 0;
+      const count = visible.length;
+      visible.forEach((m) => {
+        const team1Won = m.score1 > m.score2;
+        const team1HasA = teamA.every((p) => m.team1.includes(p));
+        if (team1HasA ? team1Won : !team1Won) wins++;
+      });
+      const labelA = teamA.join(" & ");
+      const matchWord = count === 1 ? "match" : "matches";
+      const losses = count - wins;
+      const pct = count > 0 ? Math.round((wins / count) * 100) : 0;
+      if (count === 0) {
+        h2hSummary = `No matches found for ${labelA}.`;
+      } else if (teamA.length > 1) {
+        h2hSummary = `${labelA} together: ${wins}W – ${losses}L (${pct}% win rate across ${count} ${matchWord}).`;
+      } else {
+        h2hSummary = `${labelA}: ${wins}W – ${losses}L (${pct}% win rate across ${count} ${matchWord}).`;
+      }
+    } else if (teamB.length > 0) {
+      let wins = 0;
+      const count = visible.length;
+      visible.forEach((m) => {
+        const team1Won = m.score1 > m.score2;
+        const team1HasB = teamB.every((p) => m.team1.includes(p));
+        if (team1HasB ? team1Won : !team1Won) wins++;
+      });
+      const labelB = teamB.join(" & ");
+      const matchWord = count === 1 ? "match" : "matches";
+      const losses = count - wins;
+      const pct = count > 0 ? Math.round((wins / count) * 100) : 0;
+      if (count === 0) {
+        h2hSummary = `No matches found for ${labelB}.`;
+      } else if (teamB.length > 1) {
+        h2hSummary = `${labelB} together: ${wins}W – ${losses}L (${pct}% win rate across ${count} ${matchWord}).`;
+      } else {
+        h2hSummary = `${labelB}: ${wins}W – ${losses}L (${pct}% win rate across ${count} ${matchWord}).`;
+      }
+    }
   }
 
   async function handleDelete() {
@@ -217,7 +295,10 @@ export default function MatchList({
     "border dark:border-slate-600 rounded-lg px-2 py-1 text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100";
 
   return (
-    <div ref={rootRef} className="relative bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-4">
+    <div
+      ref={rootRef}
+      className="relative bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-4"
+    >
       <div className="relative mb-3">
         <Search
           size={13}
@@ -228,7 +309,10 @@ export default function MatchList({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by player or comment…"
-          className={inputCls + " w-full pl-7 font-bold text-sm text-slate-900 dark:text-white placeholder:font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500"}
+          className={
+            inputCls +
+            " w-full pl-7 font-bold text-sm text-slate-900 dark:text-white placeholder:font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500"
+          }
         />
       </div>
 
@@ -266,25 +350,43 @@ export default function MatchList({
           ))}
         </div>
         {mode === "all" && (
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              className={inputCls}
-            />
-            <span className="text-slate-400 text-xs">to</span>
-            <input
-              type="date"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              className={inputCls}
-            />
-            {(from || to) && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <input
+                type="date"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                className={inputCls}
+                title="Select date (or from date)"
+              />
+              <span className="text-slate-400 text-xs">to</span>
+              <input
+                type="date"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className={inputCls}
+                title="To date"
+              />
+            </div>
+            <select
+              value={selectedPlayer}
+              onChange={(e) => setSelectedPlayer(e.target.value)}
+              className={inputCls + " cursor-pointer"}
+              title="Filter by player"
+            >
+              <option value="">All Players</option>
+              {playerNames.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+            {(from || to || selectedPlayer) && (
               <button
                 onClick={() => {
                   setFrom("");
                   setTo("");
+                  setSelectedPlayer("");
                 }}
                 className="text-xs font-medium text-slate-400 hover:text-orange-500"
               >
@@ -343,7 +445,10 @@ export default function MatchList({
         </div>
       )}
 
-      <div ref={listContainerRef} className="space-y-4 max-h-[40rem] overflow-y-auto pr-1">
+      <div
+        ref={listContainerRef}
+        className="space-y-4 max-h-[40rem] overflow-y-auto pr-1"
+      >
         {groups.map(({ date, items }) => (
           <div key={date}>
             <div className="flex items-center gap-2 mb-2">
@@ -370,7 +475,10 @@ export default function MatchList({
                 const loserTeam = team1Won ? m.team2 : m.team1;
                 const loserScore = team1Won ? m.score2 : m.score1;
 
-                const canEdit = isSuperAdmin || isAdmin || canEditVideo;
+                const canModifyScore = isSuperAdmin || canEditScore;
+                const canModifyVideo =
+                  isSuperAdmin || canEditScore || canEditVideo;
+                const canEdit = canModifyScore || canModifyVideo;
                 const canDelete = isSuperAdmin;
                 const abandoned = isAbandoned(m);
                 const dayNo = items.length - idx;
@@ -389,7 +497,10 @@ export default function MatchList({
                         <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-0.5">
                           {mode === "today"
                             ? "Match #" + dayNo
-                            : "Match #" + dayNo + " · Overall #" + seqById.get(m.id)}
+                            : "Match #" +
+                              dayNo +
+                              " · Overall #" +
+                              seqById.get(m.id)}
                         </p>
                         <div className="flex items-center gap-3 text-sm">
                           {/* Left side: Always winning team in green */}
@@ -451,7 +562,11 @@ export default function MatchList({
                           <button
                             onClick={() => setEditingMatch(m)}
                             className="p-1.5 rounded-lg text-slate-300 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30 transition"
-                            title="Edit match & YouTube video link"
+                            title={
+                              isSuperAdmin || canEditScore
+                                ? "Edit match score & YouTube video link"
+                                : "Update YouTube video link"
+                            }
                           >
                             <Pencil size={13} />
                           </button>
@@ -496,7 +611,7 @@ export default function MatchList({
           onSave={handleSaveScore}
           onClose={() => setEditingMatch(null)}
           photoByName={photoByName}
-          videoOnly={!isSuperAdmin}
+          videoOnly={!isSuperAdmin && !canEditScore}
         />
       )}
 

@@ -4,8 +4,10 @@ import * as api from "./lib/api";
 import {
   playerNames,
   photoMap,
-  SUPER_ADMIN_NAME,
-  isMatchAdmin as isMatchAdminCheck,
+  isSuperAdmin as isSuperAdminCheck,
+  canLogMatch,
+  canEditScore,
+  canManageVideoUrls,
 } from "./lib/admins";
 import Header from "./components/Header";
 import Dashboard from "./pages/Dashboard";
@@ -164,14 +166,15 @@ export default function App() {
     );
   }
 
-  const isAdmin = !!adminName;
   const names = playerNames(data.players);
   const photoByName = photoMap(data.players);
   // Suresh Padaga gets elevated rights: view history, edit/delete matches from any day.
   // Keyed on name, not PIN — PINs are meant to be changeable, so a super admin who
   // updates their own PIN must not lose access.
-  const isSuperAdmin = adminName === SUPER_ADMIN_NAME;
-  const isMatchAdmin = isMatchAdminCheck(adminName);
+  const isSuperAdmin = isSuperAdminCheck(adminName);
+  const canLog = canLogMatch(adminName, data.players);
+  const canEditScoreUser = canEditScore(adminName, data.players);
+  const canManageVideosUser = canManageVideoUrls(adminName, data.players);
 
   const actions = {
     addPlayer: (name) =>
@@ -283,7 +286,7 @@ export default function App() {
       <Header
         page={page}
         onNavigate={setPage}
-        isAdmin={isAdmin}
+        isAdmin={canLog}
         adminName={adminName}
         canViewHistory={isSuperAdmin}
         onLoginClick={() => setLoginOpen(true)}
@@ -320,13 +323,15 @@ export default function App() {
             actions={actions}
             onNavigate={setPage}
             onImport={handleImport}
-            isAdmin={isMatchAdmin}
+            isAdmin={canLog}
             isSuperAdmin={isSuperAdmin}
+            canEditScore={canEditScoreUser}
+            canEditVideo={canManageVideosUser}
             photoByName={photoByName}
             onViewProfile={viewProfile}
           />
         )}
-        {page === "log" && isAdmin && (
+        {page === "log" && canLog && (
           <LogMatch
             players={names}
             matches={data.matches}
@@ -350,6 +355,7 @@ export default function App() {
           <Report
             data={{ matches: data.matches, players: names, dues: data.dues }}
             actions={actions}
+            isAdmin={canLog}
             isSuperAdmin={isSuperAdmin}
           />
         )}

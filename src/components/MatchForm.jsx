@@ -2,6 +2,7 @@ import { useState } from "react";
 import PlayerPicker from "./PlayerPicker";
 import ConfirmDialog from "./ConfirmDialog";
 import { localISODate } from "../lib/date";
+import { formatYoutubeUrl, isValidYoutubeUrl } from "../lib/ranking";
 
 const today = () => localISODate();
 const MAX_SCORE = 30;
@@ -29,6 +30,7 @@ export default function MatchForm({
   players,
   matches = [],
   onAddMatch,
+  onCancel,
   photoByName = {},
 }) {
   const [form, setForm] = useState(empty());
@@ -82,6 +84,13 @@ export default function MatchForm({
     }
     if (s1 === s2) return setError("Scores cannot be tied.");
 
+    const rawYoutube = (youtubeUrl || "").trim();
+    if (rawYoutube && !isValidYoutubeUrl(rawYoutube)) {
+      return setError(
+        "Please enter a valid YouTube URL (e.g. https://www.youtube.com/watch?v=... or https://youtu.be/...)."
+      );
+    }
+
     const payload = {
       date,
       team1: [p1, p2],
@@ -89,7 +98,7 @@ export default function MatchForm({
       score1: s1,
       score2: s2,
       comment: comment.trim(),
-      youtubeUrl: formatYoutubeUrl(youtubeUrl),
+      youtubeUrl: rawYoutube ? formatYoutubeUrl(rawYoutube) : "",
     };
     const duplicate = matches.some(
       (m) => m.date === date && isSamePairing(m, [p1, p2], [p3, p4]),
@@ -116,9 +125,28 @@ export default function MatchForm({
       onSubmit={handleSubmit}
       className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-4 sm:p-6 space-y-4"
     >
-      <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
-        Log Match
-      </h2>
+      <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
+          Log Match
+        </h2>
+        <div className="flex items-center gap-2">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-3.5 py-1.5 rounded-lg border dark:border-slate-600 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            type="submit"
+            className="px-4 py-1.5 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700 transition shadow-sm"
+          >
+            Save Match
+          </button>
+        </div>
+      </div>
 
       <div>
         <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
@@ -215,7 +243,7 @@ export default function MatchForm({
           <span className="text-slate-400 font-normal">(optional)</span>
         </label>
         <input
-          type="url"
+          type="text"
           value={form.youtubeUrl}
           onChange={(e) => set("youtubeUrl", e.target.value)}
           placeholder="https://www.youtube.com/watch?v=..."
@@ -227,12 +255,23 @@ export default function MatchForm({
         <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
       )}
 
-      <button
-        type="submit"
-        className="w-full sm:w-auto px-5 py-2 rounded-lg bg-orange-600 text-white font-medium hover:bg-orange-700 transition"
-      >
-        Save Match
-      </button>
+      <div className="flex items-center gap-3 pt-2">
+        <button
+          type="submit"
+          className="w-full sm:w-auto px-5 py-2 rounded-lg bg-orange-600 text-white font-medium hover:bg-orange-700 transition shadow-sm"
+        >
+          Save Match
+        </button>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-full sm:w-auto px-4 py-2 rounded-lg border dark:border-slate-600 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
 
       <ConfirmDialog
         open={!!pendingMatch}

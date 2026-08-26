@@ -5,14 +5,16 @@ import {
   Calendar,
   CalendarClock,
   CreditCard,
+  Pencil,
   ShieldCheck,
   Trophy,
+  UserPlus,
   X,
 } from "lucide-react";
 import YoutubeIcon from "../components/YoutubeIcon";
 import Avatar from "../components/Avatar";
 import MatchesModal from "../components/MatchesModal";
-import { SUPER_ADMIN_NAME } from "../lib/admins";
+import { isSuperAdmin, getPlayerRole } from "../lib/admins";
 import {
   computeStats,
   computeRanks,
@@ -129,7 +131,9 @@ function PeriodCard({ label, rec, onClick }) {
             {rec.losses}L
           </span>
         </p>
-        <p className="text-xs font-bold text-orange-600 mt-0.5">{rec.winRate}%</p>
+        <p className="text-xs font-bold text-orange-600 mt-0.5">
+          {rec.winRate}%
+        </p>
       </div>
     </button>
   );
@@ -343,7 +347,10 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
                       <span className="text-red-500 dark:text-red-400 font-bold">
                         {x.losses}L
                       </span>{" "}
-                      · <span className="text-orange-600 font-bold">{x.winRate}%</span>
+                      ·{" "}
+                      <span className="text-orange-600 font-bold">
+                        {x.winRate}%
+                      </span>
                     </span>
                   </button>
                 );
@@ -351,80 +358,81 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
             </div>
           </>
         )
+      ) : versusList.length === 0 ? (
+        <p className="text-slate-400 text-sm">No opponent matches yet.</p>
       ) : (
-        versusList.length === 0 ? (
-          <p className="text-slate-400 text-sm">No opponent matches yet.</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-3 gap-3 mb-5">
-              <StatTile
-                value={versusList.length}
-                label="Opponents faced"
-                color="text-slate-800 dark:text-slate-100"
+        <>
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            <StatTile
+              value={versusList.length}
+              label="Opponents faced"
+              color="text-slate-800 dark:text-slate-100"
+            />
+            <StatTile
+              value={overallVersus.played}
+              label="Total matchups"
+              onClick={() =>
+                onDrilldown({
+                  title: `${playerName} — all matches`,
+                  list: matchesForPlayer(matches, playerName),
+                })
+              }
+            />
+            <StatTile
+              value={`${overallVersus.wins}W – ${overallVersus.losses}L`}
+              label="Overall vs record"
+              onClick={() =>
+                onDrilldown({
+                  title: `${playerName} — all matches`,
+                  list: matchesForPlayer(matches, playerName),
+                })
+              }
+            />
+          </div>
+          <div className="space-y-2 mb-5">
+            {versusList.map((x) => (
+              <Bar
+                key={x.opponent}
+                label={`vs ${x.opponent}`}
+                value={x.played}
+                max={maxVersus}
               />
-              <StatTile
-                value={overallVersus.played}
-                label="Total matchups"
+            ))}
+          </div>
+          <div className="space-y-1.5 max-h-[22rem] overflow-y-auto pr-1">
+            {versusList.map((x) => (
+              <button
+                key={x.opponent}
+                type="button"
                 onClick={() =>
                   onDrilldown({
-                    title: `${playerName} — all matches`,
-                    list: matchesForPlayer(matches, playerName),
+                    title: `${playerName} vs ${x.opponent}`,
+                    list: matchesVersus(matches, playerName, x.opponent),
                   })
                 }
-              />
-              <StatTile
-                value={`${overallVersus.wins}W – ${overallVersus.losses}L`}
-                label="Overall vs record"
-                onClick={() =>
-                  onDrilldown({
-                    title: `${playerName} — all matches`,
-                    list: matchesForPlayer(matches, playerName),
-                  })
-                }
-              />
-            </div>
-            <div className="space-y-2 mb-5">
-              {versusList.map((x) => (
-                <Bar
-                  key={x.opponent}
-                  label={`vs ${x.opponent}`}
-                  value={x.played}
-                  max={maxVersus}
-                />
-              ))}
-            </div>
-            <div className="space-y-1.5 max-h-[22rem] overflow-y-auto pr-1">
-              {versusList.map((x) => (
-                <button
-                  key={x.opponent}
-                  type="button"
-                  onClick={() =>
-                    onDrilldown({
-                      title: `${playerName} vs ${x.opponent}`,
-                      list: matchesVersus(matches, playerName, x.opponent),
-                    })
-                  }
-                  className="w-full flex items-center justify-between text-xs px-3 py-2 rounded-lg border dark:border-slate-700 hover:border-orange-200 dark:hover:border-orange-800 transition cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/40"
-                >
-                  <span className="font-semibold text-slate-700 dark:text-slate-200">
-                    vs {x.opponent}
+                className="w-full flex items-center justify-between text-xs px-3 py-2 rounded-lg border dark:border-slate-700 hover:border-orange-200 dark:hover:border-orange-800 transition cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/40"
+              >
+                <span className="font-semibold text-slate-700 dark:text-slate-200">
+                  vs {x.opponent}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {x.played} played ·{" "}
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                    {x.wins}W
+                  </span>{" "}
+                  –{" "}
+                  <span className="text-red-500 dark:text-red-400 font-bold">
+                    {x.losses}L
+                  </span>{" "}
+                  ·{" "}
+                  <span className="text-orange-600 font-bold">
+                    {x.winRate}%
                   </span>
-                  <span className="text-slate-500 dark:text-slate-400">
-                    {x.played} played ·{" "}
-                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                      {x.wins}W
-                    </span>{" "}
-                    –{" "}
-                    <span className="text-red-500 dark:text-red-400 font-bold">
-                      {x.losses}L
-                    </span>{" "}
-                    · <span className="text-orange-600 font-bold">{x.winRate}%</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </>
-        )
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
@@ -447,10 +455,8 @@ export default function PlayerProfile({
     (p) => (typeof p === "string" ? p : p.name) === playerName,
   );
   const photo = typeof playerObj === "object" ? playerObj.photo : undefined;
-  const isSuperAdminPlayer = playerName === SUPER_ADMIN_NAME;
-  const showsAsAdmin =
-    isSuperAdminPlayer ||
-    (typeof playerObj === "object" && playerObj.role === "admin");
+  const isSuperAdminPlayer = isSuperAdmin(playerName);
+  const role = getPlayerRole(playerObj || playerName);
 
   const slot = slots?.find(
     (s) => s.name?.trim().toLowerCase() === playerName.trim().toLowerCase(),
@@ -506,9 +512,21 @@ export default function PlayerProfile({
               <h1 className="text-xl font-extrabold text-slate-900 dark:text-white">
                 {playerName}
               </h1>
-              {showsAsAdmin ? (
+              {isSuperAdminPlayer || role === "admin" ? (
                 <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded-full">
                   <ShieldCheck size={10} /> Admin
+                </span>
+              ) : role === "score_editor" ? (
+                <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 rounded-full">
+                  <Pencil size={10} /> Score & Video
+                </span>
+              ) : role === "video_editor" ? (
+                <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 px-1.5 py-0.5 rounded-full">
+                  <YoutubeIcon size={12} /> Video Editor
+                </span>
+              ) : role === "match_logger" ? (
+                <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 px-1.5 py-0.5 rounded-full">
+                  <UserPlus size={10} /> Match Logger
                 </span>
               ) : (
                 <span className="text-[10px] font-bold uppercase tracking-wide bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 px-1.5 py-0.5 rounded-full">
@@ -693,7 +711,8 @@ export default function PlayerProfile({
             </h2>
             {selectedDate && (
               <span className="text-xs text-orange-600 dark:text-orange-400 font-semibold">
-                ({displayedMatches.length} match{displayedMatches.length !== 1 ? "es" : ""})
+                ({displayedMatches.length} match
+                {displayedMatches.length !== 1 ? "es" : ""})
               </span>
             )}
           </div>
