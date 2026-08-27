@@ -122,28 +122,22 @@ export function computeStats(
     score: wilsonScore(s.wins, s.played),
   }));
 
-  // Sort by Wilson Score, then fall back to wins and fewer losses.
+  // Sort by Wilson Score, then fall back to wins, fewer losses, and point difference.
   const byRankRule = (a, b) =>
-    b.score - a.score || b.wins - a.wins || a.losses - b.losses;
+    b.score - a.score ||
+    b.wins - a.wins ||
+    a.losses - b.losses ||
+    (b.pointDiff || 0) - (a.pointDiff || 0);
 
   if (prioritizeRegular) {
-    const qualifiedRegular = all
-      .filter((s) => s.played >= minMatches && s.isRegular)
+    const regularPlayed = all
+      .filter((s) => s.played > 0 && s.isRegular)
       .sort(byRankRule)
-      .map((s) => ({ ...s, qualified: true }));
-    const qualifiedOther = all
-      .filter((s) => s.played >= minMatches && !s.isRegular)
+      .map((s) => ({ ...s, qualified: s.played >= minMatches }));
+    const otherPlayed = all
+      .filter((s) => s.played > 0 && !s.isRegular)
       .sort(byRankRule)
-      .map((s) => ({ ...s, qualified: true }));
-
-    const partialRegular = all
-      .filter((s) => s.played > 0 && s.played < minMatches && s.isRegular)
-      .sort(byRankRule)
-      .map((s) => ({ ...s, qualified: false }));
-    const partialOther = all
-      .filter((s) => s.played > 0 && s.played < minMatches && !s.isRegular)
-      .sort(byRankRule)
-      .map((s) => ({ ...s, qualified: false }));
+      .map((s) => ({ ...s, qualified: s.played >= minMatches }));
 
     const unrankedRegular = all
       .filter((s) => s.played === 0 && s.isRegular)
@@ -153,28 +147,22 @@ export function computeStats(
       .map((s) => ({ ...s, qualified: false }));
 
     return [
-      ...qualifiedRegular,
-      ...qualifiedOther,
-      ...partialRegular,
-      ...partialOther,
+      ...regularPlayed,
+      ...otherPlayed,
       ...unrankedRegular,
       ...unrankedOther,
     ];
   }
 
-  const qualified = all
-    .filter((s) => s.played >= minMatches)
+  const played = all
+    .filter((s) => s.played > 0)
     .sort(byRankRule)
-    .map((s) => ({ ...s, qualified: true }));
-  const partial = all
-    .filter((s) => s.played > 0 && s.played < minMatches)
-    .sort(byRankRule)
-    .map((s) => ({ ...s, qualified: false }));
+    .map((s) => ({ ...s, qualified: s.played >= minMatches }));
   const unranked = all
     .filter((s) => s.played === 0)
     .map((s) => ({ ...s, qualified: false }));
 
-  return [...qualified, ...partial, ...unranked];
+  return [...played, ...unranked];
 }
 
 // Compute wins/losses per unique 2-player pair (team combination) across all matches.
@@ -213,44 +201,24 @@ export function computeTopPairs(
   const byRankRule = (a, b) =>
     b.score - a.score || b.wins - a.wins || a.losses - b.losses;
 
-  const pairs = computePairStats(matches);
+  const pairs = computePairStats(matches).filter((p) => p.played > 0);
 
   if (prioritizeRegular) {
-    const qualifiedRegular = pairs
-      .filter((p) => p.played >= minMatches && p.isRegular)
+    const regularPairs = pairs
+      .filter((p) => p.isRegular)
       .sort(byRankRule)
-      .map((p) => ({ ...p, qualified: true }));
-    const qualifiedOther = pairs
-      .filter((p) => p.played >= minMatches && !p.isRegular)
+      .map((p) => ({ ...p, qualified: p.played >= minMatches }));
+    const otherPairs = pairs
+      .filter((p) => !p.isRegular)
       .sort(byRankRule)
-      .map((p) => ({ ...p, qualified: true }));
+      .map((p) => ({ ...p, qualified: p.played >= minMatches }));
 
-    const partialRegular = pairs
-      .filter((p) => p.played < minMatches && p.isRegular)
-      .sort(byRankRule)
-      .map((p) => ({ ...p, qualified: false }));
-    const partialOther = pairs
-      .filter((p) => p.played < minMatches && !p.isRegular)
-      .sort(byRankRule)
-      .map((p) => ({ ...p, qualified: false }));
-
-    return [
-      ...qualifiedRegular,
-      ...qualifiedOther,
-      ...partialRegular,
-      ...partialOther,
-    ];
+    return [...regularPairs, ...otherPairs];
   }
 
-  const qualified = pairs
-    .filter((p) => p.played >= minMatches)
+  return pairs
     .sort(byRankRule)
-    .map((p) => ({ ...p, qualified: true }));
-  const partial = pairs
-    .filter((p) => p.played < minMatches)
-    .sort(byRankRule)
-    .map((p) => ({ ...p, qualified: false }));
-  return [...qualified, ...partial];
+    .map((p) => ({ ...p, qualified: p.played >= minMatches }));
 }
 
 // Standard competition ranking (1-2-2-4): rows tied on Wilson score share a rank.
@@ -262,9 +230,7 @@ export function computeRanks(rows) {
     } else {
       const prev = rows[i - 1];
       const sameScore = prev.score === s.score;
-      const sameTier =
-        prev.qualified === s.qualified &&
-        Boolean(prev.isRegular) === Boolean(s.isRegular);
+      const sameTier = Boolean(prev.isRegular) === Boolean(s.isRegular);
       if (sameScore && sameTier) {
         ranks.push(ranks[i - 1]);
       } else {
