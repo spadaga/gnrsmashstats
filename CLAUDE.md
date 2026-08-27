@@ -777,11 +777,14 @@ overrides this base rule as before; only the previously-undefined light-mode def
   etc. (`isGuestName` in `ranking.js`) is excluded from every ranking/leaderboard display (Leaderboard,
   TopSeeds, Report's Individual/Pair Rankings) but still appears normally in raw match lists/history
   (`MatchList`, `MatchesModal`) — only the ranking computation filters them out, nothing hides the matches
-  themselves.
-- **Qualify threshold is 3 games for `Leaderboard`/`TopSeeds`** (Today period still ranks anyone who's
-  played at all), but stays **4 games** for `Report.jsx`'s Individual/Pair Rankings and `PlayerProfile`'s
-  overall win-rate line (`computeStats`'s own default) — these two qualify rules are intentionally
-  different call sites, not a single global constant.
+- **Ranking & 2-Tier Week Ribbon**:
+  - `Today`: minimum 3 matches, ranked by Wilson score interval.
+  - `Sunday`: minimum 3 matches across all historical Sunday matches, ranked by Wilson score.
+  - `Weekly` (with 2-Tier Smart Week Ribbon):
+    - **All Week**: minimum 10 matches (Mon–Sat regular play), regular players prioritized first by Wilson score.
+    - **Day Breakdown (Sun, Mon, Tue, Wed, Thu, Fri, Sat)**: minimum 3 matches on that day, ranked by Wilson score.
+  - `Monthly`, `Yearly`, `Overall`: minimum 10 matches (Mon–Sat regular play), regular players prioritized first.
+  - Regular players list: `Suresh Padaga`, `Srinivas Padaga`, `Sanjeev Kumar`, `Abdhulla`/`Abdhullah`/`Nayeem Abdhullah`, `HR`/`Pradeep Raghav`, `Narender`/`Narendra`, `Manikyam`.
 - **Live sync is polling, not push**: `App.jsx` re-fetches `/api/state` every 10s so other open devices
   pick up new/edited matches without a manual reload. There's no WebSocket/SSE layer — at this app's scale
   a 10s poll is enough, and it avoids new infrastructure.

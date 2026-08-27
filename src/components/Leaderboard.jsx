@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Medal } from "lucide-react";
 import {
   computeStats,
@@ -9,9 +9,11 @@ import {
   matchesForPlayer,
   matchesForPair,
 } from "../lib/ranking";
+import { getCurrentWeekDates } from "../lib/date";
 import Avatar from "./Avatar";
 import Info from "./Info";
 import MatchesModal from "./MatchesModal";
+import WeekRibbon from "./WeekRibbon";
 
 const MODES = [
   { key: "singles", label: "Singles", shortLabel: "Sgls" },
@@ -35,15 +37,39 @@ export default function Leaderboard({
 }) {
   const [mode, setMode] = useState("singles");
   const [period, setPeriod] = useState("today");
+  const [weekDay, setWeekDay] = useState("all");
   const [drilldown, setDrilldown] = useState(null);
+
+  const weekDates = useMemo(() => getCurrentWeekDates(), []);
+  const selectedDayObj = weekDates.find((d) => d.key === weekDay);
+
   let filtered = filterByPeriod(matches, period);
-  const { minMatches, prioritizeRegular } = getRankingConfig(period);
+  const { minMatches, prioritizeRegular } = getRankingConfig(period, weekDay);
   let playersForPeriod = players;
+
   if (period === "today") {
     playersForPeriod = [
       ...new Set(filtered.flatMap((m) => [...m.team1, ...m.team2])),
     ];
-  } else if (["week", "month", "year", "all"].includes(period)) {
+  } else if (period === "week") {
+    if (weekDay !== "all" && selectedDayObj) {
+      filtered = matches.filter((m) => m.date === selectedDayObj.dateStr);
+      playersForPeriod = [
+        ...new Set(filtered.flatMap((m) => [...m.team1, ...m.team2])),
+      ];
+    } else {
+      // All Week (Mon-Sat regular play)
+      filtered = filtered.filter(
+        (m) => new Date(`${m.date}T00:00:00`).getDay() !== 0,
+      );
+      const weekdayPlayerNames = new Set(
+        filtered.flatMap((m) => [...m.team1, ...m.team2]),
+      );
+      playersForPeriod = players.filter((p) =>
+        weekdayPlayerNames.has(typeof p === "string" ? p : p.name),
+      );
+    }
+  } else if (["month", "year", "all"].includes(period)) {
     filtered = filtered.filter(
       (m) => new Date(`${m.date}T00:00:00`).getDay() !== 0,
     );
@@ -100,7 +126,10 @@ export default function Leaderboard({
         {PERIODS.map((p) => (
           <button
             key={p.key}
-            onClick={() => setPeriod(p.key)}
+            onClick={() => {
+              setPeriod(p.key);
+              if (p.key !== "week") setWeekDay("all");
+            }}
             className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide transition ${
               period === p.key
                 ? "bg-slate-900 dark:bg-orange-600 text-white"
@@ -112,6 +141,17 @@ export default function Leaderboard({
           </button>
         ))}
       </div>
+
+      {/* 2-Tier Smart Week Ribbon: shown when Weekly is selected */}
+      {period === "week" && (
+        <div className="mb-3">
+          <WeekRibbon
+            matches={matches}
+            selectedDay={weekDay}
+            onSelectDay={setWeekDay}
+          />
+        </div>
+      )}
       <div className="space-y-1">
         {rows.map((s, i) => {
           const rank = ranks[i];
@@ -183,9 +223,16 @@ export default function Leaderboard({
           );
         })}
         {rows.length === 0 && (
-          <p className="text-slate-400 text-center py-4 text-sm">
-            No matches yet.
-          </p>
+          <div className="text-center py-6 text-slate-400 dark:text-slate-500 text-xs">
+            {period === "week" && weekDay !== "all" && selectedDayObj ? (
+              <p>
+                No matches recorded on {selectedDayObj.dayName},{" "}
+                {selectedDayObj.dateStr}.
+              </p>
+            ) : (
+              <p>No matches in this period.</p>
+            )}
+          </div>
         )}
       </div>
       {drilldown && (

@@ -185,24 +185,25 @@ export function WilsonInfoModal({ open, onClose, defaultTab = "ranking" }) {
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                       <Medal size={13} className="text-orange-500" /> Weekly Tab
+                      & Week Ribbon
                     </span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
-                      Min 10 Matches
+                      2-Tier Smart Ribbon
                     </span>
                   </div>
                   <ul className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1 list-disc pl-4">
                     <li>
-                      Considers <strong>Monday–Saturday matches</strong> of
-                      current week.
-                    </li>
-                    <li>Requires 10 matches to qualify.</li>
-                    <li>
-                      <strong>Regular players ranked first</strong> by Wilson
-                      score, followed by other players.
+                      <strong>All Week (Entire Week):</strong> Aggregates week
+                      matches (min 10 matches, regular players ranked first).
                     </li>
                     <li>
-                      <strong>Top Seeds:</strong> Week's leading regular player
-                      & top duo.
+                      <strong>Day Breakdown (Sun–Sat):</strong> Tap any
+                      individual day in the Ribbon to see matches and rankings
+                      for that exact day (min 3 matches, Wilson score).
+                    </li>
+                    <li>
+                      <strong>Top Seeds:</strong> Shows week champions or top
+                      performers for the selected day.
                     </li>
                   </ul>
                 </div>

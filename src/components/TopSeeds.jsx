@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Trophy, Users, User, X } from "lucide-react";
 import {
@@ -9,15 +9,17 @@ import {
   matchesForPair,
   matchesForPlayer,
 } from "../lib/ranking";
+import { getCurrentWeekDates } from "../lib/date";
 import MatchesModal from "./MatchesModal";
 import Avatar from "./Avatar";
 import { photoMap } from "../lib/admins";
 import Info from "./Info";
+import WeekRibbon from "./WeekRibbon";
 
 const PERIODS = [
   { key: "today", label: "Today", shortLabel: "Day" },
   { key: "sunday", label: "Sunday", shortLabel: "Sun" },
-  { key: "week", label: "Week", shortLabel: "Week" },
+  { key: "week", label: "Weekly", shortLabel: "Week" },
   { key: "month", label: "Month", shortLabel: "Month" },
   { key: "year", label: "Year", shortLabel: "Year" },
   { key: "all", label: "Overall", shortLabel: "All" },
@@ -146,19 +148,32 @@ export default function TopSeeds({
     Object.keys(photoByName).length > 0 ? photoByName : photoMap(players);
   const [showAll, setShowAll] = useState(false);
   const [period, setPeriod] = useState("today");
+  const [weekDay, setWeekDay] = useState("all");
   const [mode, setMode] = useState("doubles");
   const [drilldown, setDrilldown] = useState(null);
 
+  const weekDates = useMemo(() => getCurrentWeekDates(), []);
+  const selectedDayObj = weekDates.find((d) => d.key === weekDay);
+
   let filtered = filterByPeriod(matches, period);
 
-  if (["week", "month", "year", "all"].includes(period)) {
+  if (period === "week") {
+    if (weekDay !== "all" && selectedDayObj) {
+      filtered = matches.filter((m) => m.date === selectedDayObj.dateStr);
+    } else {
+      // For regular Monday-to-Saturday leaderboards, exclude Sunday matches
+      filtered = filtered.filter(
+        (m) => new Date(`${m.date}T00:00:00`).getDay() !== 0,
+      );
+    }
+  } else if (["month", "year", "all"].includes(period)) {
     // For regular Monday-to-Saturday leaderboards, exclude Sunday matches from stats
     filtered = filtered.filter(
       (m) => new Date(`${m.date}T00:00:00`).getDay() !== 0,
     );
   }
 
-  const { minMatches, prioritizeRegular } = getRankingConfig(period);
+  const { minMatches, prioritizeRegular } = getRankingConfig(period, weekDay);
 
   // Calculate top seeds using Wilson score logic
   let items = [];
@@ -179,8 +194,7 @@ export default function TopSeeds({
 
   const periodObj = PERIODS.find((p) => p.key === period);
   const periodLabel = periodObj ? periodObj.label : period;
-  const modeObj = MODES.find((m) => m.key === mode);
-  const modeLabel = modeObj ? modeObj.label : mode;
+  const modeLabel = MODES.find((m) => m.key === mode)?.label || mode;
 
   return (
     <div>
@@ -221,7 +235,10 @@ export default function TopSeeds({
           {PERIODS.map((p) => (
             <button
               key={p.key}
-              onClick={() => setPeriod(p.key)}
+              onClick={() => {
+                setPeriod(p.key);
+                if (p.key !== "week") setWeekDay("all");
+              }}
               className={
                 "px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide transition " +
                 (period === p.key
@@ -243,6 +260,17 @@ export default function TopSeeds({
           </button>
         )}
       </div>
+
+      {/* 2-Tier Smart Week Ribbon: shown when Weekly is selected */}
+      {period === "week" && (
+        <div className="mb-3">
+          <WeekRibbon
+            matches={matches}
+            selectedDay={weekDay}
+            onSelectDay={setWeekDay}
+          />
+        </div>
+      )}
 
       {top2.length === 0 && (
         <p className="text-slate-400 text-sm text-center py-6 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-2xl">

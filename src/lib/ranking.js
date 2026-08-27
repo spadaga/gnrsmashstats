@@ -27,12 +27,21 @@ export function isRegularPlayer(name) {
 // Period-specific ranking configuration:
 // - Today: min 3 matches (within that day only), ranked by Wilson score.
 // - Sunday: min 3 matches (across all Sunday matches), ranked by Wilson score.
-// - Week / Month / Year / Overall: min 10 matches, regular players ranked first.
-export function getRankingConfig(period) {
+// - Week (specific day selected): min 3 matches (within that day only), ranked by Wilson score.
+// - Week (all) / Month / Year / Overall: min 10 matches, regular players ranked first.
+export function getRankingConfig(period, weekDay = "all") {
   if (period === "today" || period === "sunday") {
     return { minMatches: 3, prioritizeRegular: false };
   }
+  if (period === "week" && weekDay && weekDay !== "all") {
+    return { minMatches: 3, prioritizeRegular: false };
+  }
   return { minMatches: 10, prioritizeRegular: true };
+}
+
+export function filterByWeekDay(matches, dateStr) {
+  if (!dateStr) return matches;
+  return matches.filter((m) => m.date === dateStr);
 }
 
 // A "guest" is a one-off player name (e.g. "Guest1") added for a single
