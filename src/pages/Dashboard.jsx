@@ -2,6 +2,7 @@ import { useState } from "react";
 import FilterBar from "../components/FilterBar";
 import StatCards from "../components/StatCards";
 import TopSeeds from "../components/TopSeeds";
+import PlayerActivity from "../components/PlayerActivity";
 import Leaderboard from "../components/Leaderboard";
 import MatchList from "../components/MatchList";
 import VideoSection from "../components/VideoSection";
@@ -40,6 +41,11 @@ export default function Dashboard({
         matches={data.matches}
         players={data.players}
         photoByName={photoByName}
+      />
+      <PlayerActivity
+        matches={data.matches}
+        photoByName={photoByName}
+        onViewProfile={onViewProfile}
       />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <MatchList
