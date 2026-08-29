@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { ChevronDown, Ban } from 'lucide-react'
 import Avatar from './Avatar'
+import { sortPlayersByTier } from '../lib/ranking'
 
 export default function PlayerPicker({
   value,
@@ -47,16 +48,11 @@ export default function PlayerPicker({
     return set;
   }, [players, inactivePlayers, options]);
 
-  // Normalize options to list of string names, ordered with active players first and inactive at the bottom
+  // Main players first, other players middle, guest players last, inactive at the bottom
   const sortedOptions = useMemo(() => {
-    const rawNames = options.map((p) => (typeof p === "string" ? p : p.name));
-    const active = rawNames.filter(
-      (n) => !inactiveSet.has(String(n).trim().toLowerCase()),
+    return sortPlayersByTier(options, inactiveSet).map((p) =>
+      typeof p === "string" ? p : p.name,
     );
-    const inactive = rawNames.filter((n) =>
-      inactiveSet.has(String(n).trim().toLowerCase()),
-    );
-    return [...active, ...inactive];
   }, [options, inactiveSet]);
 
   const isInactive = (name) => {

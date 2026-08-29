@@ -9,7 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import ConfirmDialog from "./ConfirmDialog";
-import { formatYoutubeUrl, isAbandoned } from "../lib/ranking";
+import { formatYoutubeUrl, isAbandoned, sortPlayersByTier } from "../lib/ranking";
 import { localISODate } from "../lib/date";
 import MatchEditModal from "./MatchEditModal";
 import YoutubeIcon from "./YoutubeIcon";
@@ -69,11 +69,13 @@ function PlayerSelect({ value, onChange, options, placeholder, players = [] }) {
       .filter((p) => typeof p === "object" && p.inactive)
       .map((p) => p.name.toLowerCase()),
   );
-  const activeOpts = options.filter(
-    (p) => !inactives.has(String(p).toLowerCase()),
+  const sorted = sortPlayersByTier(options, inactives);
+  const activeOpts = sorted.filter(
+    (p) =>
+      !inactives.has(String(typeof p === "string" ? p : p.name).toLowerCase()),
   );
-  const inactiveOpts = options.filter((p) =>
-    inactives.has(String(p).toLowerCase()),
+  const inactiveOpts = sorted.filter((p) =>
+    inactives.has(String(typeof p === "string" ? p : p.name).toLowerCase()),
   );
 
   return (
@@ -83,16 +85,22 @@ function PlayerSelect({ value, onChange, options, placeholder, players = [] }) {
       className="flex-1 min-w-0 border dark:border-slate-600 rounded-lg px-2 py-1 text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:border-orange-400 focus:outline-none cursor-pointer"
     >
       {placeholder && <option value="">{placeholder}</option>}
-      {activeOpts.map((p) => (
-        <option key={p} value={p}>
-          {p}
-        </option>
-      ))}
-      {inactiveOpts.map((p) => (
-        <option key={p} value={p}>
-          {p} (Inactive)
-        </option>
-      ))}
+      {activeOpts.map((p) => {
+        const name = typeof p === "string" ? p : p.name;
+        return (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        );
+      })}
+      {inactiveOpts.map((p) => {
+        const name = typeof p === "string" ? p : p.name;
+        return (
+          <option key={name} value={name}>
+            {name} (Inactive)
+          </option>
+        );
+      })}
     </select>
   );
 }
@@ -392,35 +400,27 @@ export default function MatchList({
               title="Filter by player"
             >
               <option value="">All Players</option>
-              {playerNames
-                .filter(
-                  (p) =>
-                    !players.some(
-                      (pl) =>
-                        typeof pl === "object" &&
-                        pl.inactive &&
-                        pl.name.toLowerCase() === p.toLowerCase(),
-                    ),
-                )
-                .map((p) => (
+              {sortPlayersByTier(
+                playerNames,
+                new Set(
+                  players
+                    .filter((p) => typeof p === "object" && p.inactive)
+                    .map((p) => p.name.toLowerCase()),
+                ),
+              ).map((p) => {
+                const isInactive = players.some(
+                  (pl) =>
+                    typeof pl === "object" &&
+                    pl.inactive &&
+                    pl.name.toLowerCase() === p.toLowerCase(),
+                );
+                return (
                   <option key={p} value={p}>
                     {p}
+                    {isInactive ? " (Inactive)" : ""}
                   </option>
-                ))}
-              {playerNames
-                .filter((p) =>
-                  players.some(
-                    (pl) =>
-                      typeof pl === "object" &&
-                      pl.inactive &&
-                      pl.name.toLowerCase() === p.toLowerCase(),
-                  ),
-                )
-                .map((p) => (
-                  <option key={p} value={p}>
-                    {p} (Inactive)
-                  </option>
-                ))}
+                );
+              })}
             </select>
             {(from || to || selectedPlayer) && (
               <button

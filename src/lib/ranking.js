@@ -55,6 +55,37 @@ export function isGuestName(name) {
   return /^guest\s*\d*$/i.test(String(name).trim());
 }
 
+// Tier-based priority: Main/Regular first, Other players middle, Guest players last, Inactive at the bottom
+export function getPlayerTier(player, inactiveOverride = null) {
+  const name = typeof player === "string" ? player : player?.name || "";
+  const isInactive =
+    inactiveOverride !== null
+      ? Boolean(inactiveOverride)
+      : typeof player === "object" && Boolean(player?.inactive);
+  const isRegular = isRegularPlayer(name);
+  const isGuest = isGuestName(name);
+
+  // Active tiers: 0 = Regular/Main, 1 = Other, 2 = Guest
+  // Inactive tiers: 10 = Inactive Regular, 11 = Inactive Other, 12 = Inactive Guest
+  const base = isInactive ? 10 : 0;
+  if (isRegular) return base + 0;
+  if (isGuest) return base + 2;
+  return base + 1;
+}
+
+export function sortPlayersByTier(players, inactiveSet = null) {
+  return [...players].sort((a, b) => {
+    const aName = typeof a === "string" ? a : a?.name || "";
+    const bName = typeof b === "string" ? b : b?.name || "";
+    const aInactive = inactiveSet ? inactiveSet.has(aName.toLowerCase()) : null;
+    const bInactive = inactiveSet ? inactiveSet.has(bName.toLowerCase()) : null;
+    const tierA = getPlayerTier(a, aInactive);
+    const tierB = getPlayerTier(b, bInactive);
+    if (tierA !== tierB) return tierA - tierB;
+    return aName.localeCompare(bName);
+  });
+}
+
 // Wilson Score Interval lower bound. This provides a statistically sound way
 // to rank players with different numbers of games. It's more reliable than
 // simple win rate, as it accounts for sample size. A player with 2 wins in 2

@@ -20,6 +20,7 @@ import {
   matchesForPlayer,
   matchesForPair,
   formatYoutubeUrl,
+  sortPlayersByTier,
 } from "../lib/ranking";
 import ConfirmDialog from "../components/ConfirmDialog";
 
@@ -66,21 +67,26 @@ export function Bar({ label, value, max, color = "bg-orange-600" }) {
 }
 
 function renderPlayerOptions(playerList) {
-  const norm = (p) => (typeof p === "string" ? { name: p } : p);
-  const normalized = (playerList || []).map(norm);
-  const active = normalized.filter((p) => !p.inactive);
-  const inactive = normalized.filter((p) => p.inactive);
+  const sorted = sortPlayersByTier(playerList || []);
+  const active = sorted.filter((p) => typeof p === "string" || !p.inactive);
+  const inactive = sorted.filter((p) => typeof p === "object" && p.inactive);
   return [
-    ...active.map((p) => (
-      <option key={p.name} value={p.name}>
-        {p.name}
-      </option>
-    )),
-    ...inactive.map((p) => (
-      <option key={p.name} value={p.name}>
-        {p.name} (Inactive)
-      </option>
-    )),
+    ...active.map((p) => {
+      const name = typeof p === "string" ? p : p.name;
+      return (
+        <option key={name} value={name}>
+          {name}
+        </option>
+      );
+    }),
+    ...inactive.map((p) => {
+      const name = typeof p === "string" ? p : p.name;
+      return (
+        <option key={name} value={name}>
+          {name} (Inactive)
+        </option>
+      );
+    }),
   ];
 }
 

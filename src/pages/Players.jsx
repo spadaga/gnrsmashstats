@@ -13,6 +13,7 @@ import {
 import ConfirmDialog from "../components/ConfirmDialog";
 import Avatar from "../components/Avatar";
 import { isSuperAdmin, getPlayerRole } from "../lib/admins";
+import { sortPlayersByTier } from "../lib/ranking";
 import YoutubeIcon from "../components/YoutubeIcon";
 
 const MAX_AVATAR_DIMENSION = 300; // px, longest side
@@ -169,15 +170,8 @@ export default function Players({ players, actions, isAdmin, onViewProfile }) {
     actions.updatePlayer(oldName, updates);
   }
 
-  // Active players first, deactivated players at the bottom
-  const sortedPlayers = [...players].sort((a, b) => {
-    const aInactive = typeof a === "object" && Boolean(a.inactive);
-    const bInactive = typeof b === "object" && Boolean(b.inactive);
-    if (aInactive !== bInactive) return aInactive ? 1 : -1;
-    const aName = typeof a === "string" ? a : a.name;
-    const bName = typeof b === "string" ? b : b.name;
-    return aName.localeCompare(bName);
-  });
+  // Main players first, other players middle, guest players last, inactive at the bottom
+  const sortedPlayers = sortPlayersByTier(players);
 
   const activeCount = players.filter(
     (p) => typeof p === "string" || !p.inactive,
