@@ -1,29 +1,32 @@
-import { Pool, neonConfig } from '@neondatabase/serverless'
-import crypto from 'node:crypto'
-import ws from 'ws'
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import crypto from "node:crypto";
+import ws from "ws";
 
-if (typeof WebSocket === 'undefined') neonConfig.webSocketConstructor = ws
+if (typeof WebSocket === "undefined") neonConfig.webSocketConstructor = ws;
 
-let pool
-let schemaReady
+let pool;
+let schemaReady;
 
 function getPool() {
-  if (pool) return pool
-  const connectionString = process.env.DATABASE_URL
-    || process.env.POSTGRES_URL
-    || process.env.DATABASE_URL_UNPOOLED
-    || process.env.POSTGRES_URL_NON_POOLING
+  if (pool) return pool;
+  const connectionString =
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.DATABASE_URL_UNPOOLED ||
+    process.env.POSTGRES_URL_NON_POOLING;
   if (!connectionString) {
-    const error = new Error('Neon is not connected. Add DATABASE_URL to this Vercel project and redeploy.')
-    error.code = 'DATABASE_NOT_CONFIGURED'
-    throw error
+    const error = new Error(
+      "Neon is not connected. Add DATABASE_URL to this Vercel project and redeploy.",
+    );
+    error.code = "DATABASE_NOT_CONFIGURED";
+    throw error;
   }
-  pool = new Pool({ connectionString })
-  return pool
+  pool = new Pool({ connectionString });
+  return pool;
 }
 
 export function ensureSchema() {
-  const db = getPool()
+  const db = getPool();
   schemaReady ||= (async () => {
     await db.query(`CREATE TABLE IF NOT EXISTS players (
       id bigserial PRIMARY KEY,
@@ -33,10 +36,12 @@ export function ensureSchema() {
       role text,
       inactive boolean NOT NULL DEFAULT false,
       deleted_at timestamptz
-    )`)
-    await db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS inactive boolean NOT NULL DEFAULT false`)
+    )`);
+    await db.query(
+      `ALTER TABLE players ADD COLUMN IF NOT EXISTS inactive boolean NOT NULL DEFAULT false`,
+    );
     await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS players_active_name_idx
-      ON players (name) WHERE deleted_at IS NULL`)
+      ON players (name) WHERE deleted_at IS NULL`);
     await db.query(`CREATE TABLE IF NOT EXISTS matches (
       id uuid PRIMARY KEY,
       team1_player1_id bigint NOT NULL REFERENCES players(id),
@@ -50,60 +55,64 @@ export function ensureSchema() {
       youtube_url text NOT NULL DEFAULT '',
       logged_at timestamptz NOT NULL DEFAULT now(),
       seq bigserial
-    )`)
-    await db.query(`CREATE INDEX IF NOT EXISTS matches_date_idx ON matches (match_date)`)
-    await db.query(`ALTER TABLE matches ADD COLUMN IF NOT EXISTS youtube_url text NOT NULL DEFAULT ''`)
+    )`);
+    await db.query(
+      `CREATE INDEX IF NOT EXISTS matches_date_idx ON matches (match_date)`,
+    );
+    await db.query(
+      `ALTER TABLE matches ADD COLUMN IF NOT EXISTS youtube_url text NOT NULL DEFAULT ''`,
+    );
     await db.query(`CREATE TABLE IF NOT EXISTS videos (
       id bigserial PRIMARY KEY,
       url text NOT NULL
-    )`)
+    )`);
     await db.query(`CREATE TABLE IF NOT EXISTS photos (
       id uuid PRIMARY KEY,
       data_url text NOT NULL,
       seq bigserial
-    )`)
+    )`);
     await db.query(`CREATE TABLE IF NOT EXISTS slots (
       id uuid PRIMARY KEY,
       name text NOT NULL,
       time text NOT NULL,
       end_date date NOT NULL,
       seq bigserial
-    )`)
+    )`);
     await db.query(`CREATE TABLE IF NOT EXISTS dues (
       id uuid PRIMARY KEY,
       name text NOT NULL,
       count integer NOT NULL DEFAULT 0,
       comment text NOT NULL DEFAULT '',
       seq bigserial
-    )`)
+    )`);
     await db.query(`CREATE TABLE IF NOT EXISTS app_snapshots (
       snapshot_date date PRIMARY KEY,
       state jsonb NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now()
-    )`)
+    )`);
   })().catch((error) => {
-    schemaReady = undefined
-    throw error
-  })
-  return schemaReady
+    schemaReady = undefined;
+    throw error;
+  });
+  return schemaReady;
 }
 
 function toDateStr(value) {
-  return value instanceof Date ? value.toISOString().slice(0, 10) : value
+  return value instanceof Date ? value.toISOString().slice(0, 10) : value;
 }
 
 async function selectPlayers(client) {
   const { rows } = await client.query(
-    `SELECT name, pin, photo, role, inactive FROM players WHERE deleted_at IS NULL ORDER BY id`
-  )
+    `SELECT name, pin, photo, role, inactive FROM players WHERE deleted_at IS NULL ORDER BY id`,
+  );
   return rows.map((r) => {
-    const p = { name: r.name }
-    if (r.pin) p.pin = r.pin
-    if (r.photo) p.photo = r.photo
-    if (r.role) p.role = r.role
-    if (r.inactive) p.inactive = true
-    return p
-  })
+    const p = { name: r.name };
+    if (r.pin) p.pin = r.pin;
+    if (r.photo) p.photo = r.photo;
+    if (r.role) p.role = r.role;
+    if (r.inactive) p.inactive = true;
+    return p;
+  });
 }
 
 async function selectMatches(client) {
@@ -116,7 +125,7 @@ async function selectMatches(client) {
     JOIN players p3 ON p3.id = m.team2_player1_id
     JOIN players p4 ON p4.id = m.team2_player2_id
     ORDER BY m.seq
-  `)
+  `);
   return rows.map((r) => ({
     id: r.id,
     team1: [r.t1p1, r.t1p2],
@@ -124,35 +133,51 @@ async function selectMatches(client) {
     score1: r.score1,
     score2: r.score2,
     date: toDateStr(r.match_date),
-    comment: r.comment || '',
-    youtubeUrl: r.youtube_url || '',
+    comment: r.comment || "",
+    youtubeUrl: r.youtube_url || "",
     loggedAt: r.logged_at.toISOString(),
-  }))
+  }));
 }
 
 async function selectVideos(client) {
-  const { rows } = await client.query(`SELECT url FROM videos ORDER BY id`)
-  return rows.map((r) => r.url)
+  const { rows } = await client.query(`SELECT url FROM videos ORDER BY id`);
+  return rows.map((r) => r.url);
 }
 
 async function selectPhotos(client) {
-  const { rows } = await client.query(`SELECT id, data_url FROM photos ORDER BY seq`)
-  return rows.map((r) => ({ id: r.id, dataUrl: r.data_url }))
+  const { rows } = await client.query(
+    `SELECT id, data_url FROM photos ORDER BY seq`,
+  );
+  return rows.map((r) => ({ id: r.id, dataUrl: r.data_url }));
 }
 
 async function selectSlots(client) {
-  const { rows } = await client.query(`SELECT id, name, time, end_date FROM slots ORDER BY seq`)
-  return rows.map((r) => ({ id: r.id, name: r.name, time: r.time, endDate: toDateStr(r.end_date) }))
+  const { rows } = await client.query(
+    `SELECT id, name, time, end_date FROM slots ORDER BY seq`,
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    time: r.time,
+    endDate: toDateStr(r.end_date),
+  }));
 }
 
 async function selectDues(client) {
-  const { rows } = await client.query(`SELECT id, name, count, comment FROM dues ORDER BY seq`)
-  return rows.map((r) => ({ id: r.id, name: r.name, count: r.count, comment: r.comment || '' }))
+  const { rows } = await client.query(
+    `SELECT id, name, count, comment FROM dues ORDER BY seq`,
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    count: r.count,
+    comment: r.comment || "",
+  }));
 }
 
 export async function readState(defaultState) {
-  await ensureSchema()
-  const pool = getPool()
+  await ensureSchema();
+  const pool = getPool();
   const [players, matches, videos, photos, slots, dues] = await Promise.all([
     selectPlayers(pool),
     selectMatches(pool),
@@ -160,12 +185,19 @@ export async function readState(defaultState) {
     selectPhotos(pool),
     selectSlots(pool),
     selectDues(pool),
-  ])
-  if (players.length || matches.length || videos.length || photos.length || slots.length || dues.length) {
-    return { players, matches, videos, photos, slots, dues }
+  ]);
+  if (
+    players.length ||
+    matches.length ||
+    videos.length ||
+    photos.length ||
+    slots.length ||
+    dues.length
+  ) {
+    return { players, matches, videos, photos, slots, dues };
   }
-  await writeState(defaultState)
-  return defaultState
+  await writeState(defaultState);
+  return defaultState;
 }
 
 // Bulk full-state replace. Used only by POST /api/import, POST /api/restore/:ts,
@@ -173,79 +205,108 @@ export async function readState(defaultState) {
 // whole-state operations. Per-field mutations go through the targeted functions
 // below instead, so a single player/match/etc edit no longer rewrites every table.
 export async function writeState(state) {
-  await ensureSchema()
-  const client = await getPool().connect()
+  await ensureSchema();
+  const client = await getPool().connect();
   try {
-    await client.query('BEGIN')
-    await client.query(`SELECT pg_advisory_xact_lock(684276491)`)
-    await client.query(`TRUNCATE players, matches, videos, photos, slots, dues RESTART IDENTITY`)
+    await client.query("BEGIN");
+    await client.query(`SELECT pg_advisory_xact_lock(684276491)`);
+    await client.query(
+      `TRUNCATE players, matches, videos, photos, slots, dues RESTART IDENTITY`,
+    );
 
-    const playerIdByName = new Map()
+    const playerIdByName = new Map();
     for (const p of state.players || []) {
       const { rows } = await client.query(
         `INSERT INTO players (name, pin, photo, role, inactive) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-        [p.name, p.pin || null, p.photo || null, p.role || null, Boolean(p.inactive)]
-      )
-      playerIdByName.set(p.name, rows[0].id)
+        [
+          p.name,
+          p.pin || null,
+          p.photo || null,
+          p.role || null,
+          Boolean(p.inactive),
+        ],
+      );
+      playerIdByName.set(p.name, rows[0].id);
     }
 
     for (const m of state.matches || []) {
-      const ids = [...m.team1, ...m.team2].map((n) => playerIdByName.get(n))
+      const ids = [...m.team1, ...m.team2].map((n) => playerIdByName.get(n));
       if (ids.some((id) => id === undefined)) {
-        throw new Error(`Match references unknown player: ${JSON.stringify(m)}`)
+        throw new Error(
+          `Match references unknown player: ${JSON.stringify(m)}`,
+        );
       }
       await client.query(
         `INSERT INTO matches
           (id, team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id,
            score1, score2, match_date, comment, youtube_url, logged_at)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-        [m.id || crypto.randomUUID(), ids[0], ids[1], ids[2], ids[3],
-          m.score1, m.score2, m.date, m.comment || '', m.youtubeUrl || m.youtube_url || '', m.loggedAt || new Date().toISOString()]
-      )
+        [
+          m.id || crypto.randomUUID(),
+          ids[0],
+          ids[1],
+          ids[2],
+          ids[3],
+          m.score1,
+          m.score2,
+          m.date,
+          m.comment || "",
+          m.youtubeUrl || m.youtube_url || "",
+          m.loggedAt || new Date().toISOString(),
+        ],
+      );
     }
 
     for (const url of state.videos || []) {
-      await client.query(`INSERT INTO videos (url) VALUES ($1)`, [url])
+      await client.query(`INSERT INTO videos (url) VALUES ($1)`, [url]);
     }
 
     for (const p of state.photos || []) {
-      await client.query(`INSERT INTO photos (id, data_url) VALUES ($1,$2)`, [p.id || crypto.randomUUID(), p.dataUrl])
+      await client.query(`INSERT INTO photos (id, data_url) VALUES ($1,$2)`, [
+        p.id || crypto.randomUUID(),
+        p.dataUrl,
+      ]);
     }
 
     for (const s of state.slots || []) {
       await client.query(
         `INSERT INTO slots (id, name, time, end_date) VALUES ($1,$2,$3,$4)`,
-        [s.id || crypto.randomUUID(), s.name, s.time, s.endDate]
-      )
+        [s.id || crypto.randomUUID(), s.name, s.time, s.endDate],
+      );
     }
 
     for (const due of state.dues || []) {
       await client.query(
         `INSERT INTO dues (id, name, count, comment) VALUES ($1,$2,$3,$4)`,
-        [due.id || crypto.randomUUID(), due.name, due.count || 0, due.comment || '']
-      )
+        [
+          due.id || crypto.randomUUID(),
+          due.name,
+          due.count || 0,
+          due.comment || "",
+        ],
+      );
     }
 
-    await client.query('COMMIT')
+    await client.query("COMMIT");
   } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
+    await client.query("ROLLBACK");
+    throw error;
   } finally {
-    client.release()
+    client.release();
   }
 }
 
 export async function addPlayer({ name, pin, photo }) {
-  await ensureSchema()
+  await ensureSchema();
   await getPool().query(
     `INSERT INTO players (name, pin, photo) VALUES ($1,$2,$3)`,
-    [name, pin || null, photo || null]
-  )
-  return selectPlayers(getPool())
+    [name, pin || null, photo || null],
+  );
+  return selectPlayers(getPool());
 }
 
 export async function updatePlayerByName(oldName, updated) {
-  await ensureSchema()
+  await ensureSchema();
   await getPool().query(
     `UPDATE players SET name=$1, pin=$2, photo=$3, role=$4, inactive=$5 WHERE name=$6 AND deleted_at IS NULL`,
     [
@@ -255,32 +316,36 @@ export async function updatePlayerByName(oldName, updated) {
       updated.role || null,
       Boolean(updated.inactive),
       oldName,
-    ]
-  )
-  return selectPlayers(getPool())
+    ],
+  );
+  return selectPlayers(getPool());
 }
 
 export async function deletePlayerByName(name) {
-  await ensureSchema()
-  await getPool().query(`UPDATE players SET deleted_at = now() WHERE name = $1 AND deleted_at IS NULL`, [name])
-  return selectPlayers(getPool())
+  await ensureSchema();
+  await getPool().query(
+    `UPDATE players SET deleted_at = now() WHERE name = $1 AND deleted_at IS NULL`,
+    [name],
+  );
+  return selectPlayers(getPool());
 }
 
 async function resolvePlayerIds(client, names) {
   const { rows } = await client.query(
     `SELECT id, name FROM players WHERE name = ANY($1) AND deleted_at IS NULL`,
-    [names]
-  )
-  const idByName = new Map(rows.map((r) => [r.name, r.id]))
-  const ids = names.map((n) => idByName.get(n))
-  if (ids.some((id) => id === undefined)) throw new Error('Unknown player in match')
-  return ids
+    [names],
+  );
+  const idByName = new Map(rows.map((r) => [r.name, r.id]));
+  const ids = names.map((n) => idByName.get(n));
+  if (ids.some((id) => id === undefined))
+    throw new Error("Unknown player in match");
+  return ids;
 }
 
 export async function addMatch(match) {
-  await ensureSchema()
-  const pool = getPool()
-  const ids = await resolvePlayerIds(pool, [...match.team1, ...match.team2])
+  await ensureSchema();
+  const pool = getPool();
+  const ids = await resolvePlayerIds(pool, [...match.team1, ...match.team2]);
   await pool.query(
     `INSERT INTO matches
       (id, team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id,
@@ -295,169 +360,220 @@ export async function addMatch(match) {
       match.score1,
       match.score2,
       match.date,
-      match.comment || '',
-      match.youtubeUrl || match.youtube_url || '',
+      match.comment || "",
+      match.youtubeUrl || match.youtube_url || "",
       match.loggedAt,
-    ]
-  )
-  return selectMatches(pool)
+    ],
+  );
+  return selectMatches(pool);
 }
 
 export async function updateMatch(id, updates) {
-  await ensureSchema()
-  const pool = getPool()
-  const sets = []
-  const values = []
-  let i = 1
+  await ensureSchema();
+  const pool = getPool();
+  const sets = [];
+  const values = [];
+  let i = 1;
   if (updates.team1 && updates.team2) {
-    const ids = await resolvePlayerIds(pool, [...updates.team1, ...updates.team2])
-    const cols = ['team1_player1_id', 'team1_player2_id', 'team2_player1_id', 'team2_player2_id']
+    const ids = await resolvePlayerIds(pool, [
+      ...updates.team1,
+      ...updates.team2,
+    ]);
+    const cols = [
+      "team1_player1_id",
+      "team1_player2_id",
+      "team2_player1_id",
+      "team2_player2_id",
+    ];
     cols.forEach((col, idx) => {
-      sets.push(`${col} = $${i++}`)
-      values.push(ids[idx])
-    })
+      sets.push(`${col} = $${i++}`);
+      values.push(ids[idx]);
+    });
   }
-  if (updates.score1 !== undefined) { sets.push(`score1 = $${i++}`); values.push(updates.score1) }
-  if (updates.score2 !== undefined) { sets.push(`score2 = $${i++}`); values.push(updates.score2) }
-  if (updates.date !== undefined) { sets.push(`match_date = $${i++}`); values.push(updates.date) }
-  if (updates.comment !== undefined) { sets.push(`comment = $${i++}`); values.push(updates.comment) }
+  if (updates.score1 !== undefined) {
+    sets.push(`score1 = $${i++}`);
+    values.push(updates.score1);
+  }
+  if (updates.score2 !== undefined) {
+    sets.push(`score2 = $${i++}`);
+    values.push(updates.score2);
+  }
+  if (updates.date !== undefined) {
+    sets.push(`match_date = $${i++}`);
+    values.push(updates.date);
+  }
+  if (updates.comment !== undefined) {
+    sets.push(`comment = $${i++}`);
+    values.push(updates.comment);
+  }
   if (updates.youtubeUrl !== undefined || updates.youtube_url !== undefined) {
-    sets.push(`youtube_url = $${i++}`)
-    values.push(updates.youtubeUrl ?? updates.youtube_url ?? '')
+    sets.push(`youtube_url = $${i++}`);
+    values.push(updates.youtubeUrl ?? updates.youtube_url ?? "");
   }
   if (sets.length) {
-    values.push(id)
-    await pool.query(`UPDATE matches SET ${sets.join(', ')} WHERE id = $${i}`, values)
+    values.push(id);
+    await pool.query(
+      `UPDATE matches SET ${sets.join(", ")} WHERE id = $${i}`,
+      values,
+    );
   }
-  return selectMatches(pool)
+  return selectMatches(pool);
 }
 
 export async function deleteMatch(id) {
-  await ensureSchema()
-  await getPool().query(`DELETE FROM matches WHERE id = $1`, [id])
-  return selectMatches(getPool())
+  await ensureSchema();
+  await getPool().query(`DELETE FROM matches WHERE id = $1`, [id]);
+  return selectMatches(getPool());
 }
 
 export async function addVideo(url) {
-  await ensureSchema()
-  await getPool().query(`INSERT INTO videos (url) VALUES ($1)`, [url])
-  return selectVideos(getPool())
+  await ensureSchema();
+  await getPool().query(`INSERT INTO videos (url) VALUES ($1)`, [url]);
+  return selectVideos(getPool());
 }
 
 export async function deleteVideoAt(index) {
-  await ensureSchema()
+  await ensureSchema();
   await getPool().query(
     `DELETE FROM videos WHERE id = (SELECT id FROM videos ORDER BY id OFFSET $1 LIMIT 1)`,
-    [index]
-  )
-  return selectVideos(getPool())
+    [index],
+  );
+  return selectVideos(getPool());
 }
 
 export async function addPhoto({ id, dataUrl }) {
-  await ensureSchema()
-  await getPool().query(`INSERT INTO photos (id, data_url) VALUES ($1,$2)`, [id, dataUrl])
-  return selectPhotos(getPool())
+  await ensureSchema();
+  await getPool().query(`INSERT INTO photos (id, data_url) VALUES ($1,$2)`, [
+    id,
+    dataUrl,
+  ]);
+  return selectPhotos(getPool());
 }
 
 export async function deletePhotoById(id) {
-  await ensureSchema()
-  await getPool().query(`DELETE FROM photos WHERE id = $1`, [id])
-  return selectPhotos(getPool())
+  await ensureSchema();
+  await getPool().query(`DELETE FROM photos WHERE id = $1`, [id]);
+  return selectPhotos(getPool());
 }
 
 export async function addSlot(slot) {
-  await ensureSchema()
+  await ensureSchema();
   await getPool().query(
     `INSERT INTO slots (id, name, time, end_date) VALUES ($1,$2,$3,$4)`,
-    [slot.id, slot.name, slot.time, slot.endDate]
-  )
-  return selectSlots(getPool())
+    [slot.id, slot.name, slot.time, slot.endDate],
+  );
+  return selectSlots(getPool());
 }
 
 export async function updateSlotById(id, updates) {
-  await ensureSchema()
-  const sets = []
-  const values = []
-  let i = 1
-  if (updates.name !== undefined) { sets.push(`name = $${i++}`); values.push(updates.name) }
-  if (updates.time !== undefined) { sets.push(`time = $${i++}`); values.push(updates.time) }
-  if (updates.endDate !== undefined) { sets.push(`end_date = $${i++}`); values.push(updates.endDate) }
-  if (sets.length) {
-    values.push(id)
-    await getPool().query(`UPDATE slots SET ${sets.join(', ')} WHERE id = $${i}`, values)
+  await ensureSchema();
+  const sets = [];
+  const values = [];
+  let i = 1;
+  if (updates.name !== undefined) {
+    sets.push(`name = $${i++}`);
+    values.push(updates.name);
   }
-  return selectSlots(getPool())
+  if (updates.time !== undefined) {
+    sets.push(`time = $${i++}`);
+    values.push(updates.time);
+  }
+  if (updates.endDate !== undefined) {
+    sets.push(`end_date = $${i++}`);
+    values.push(updates.endDate);
+  }
+  if (sets.length) {
+    values.push(id);
+    await getPool().query(
+      `UPDATE slots SET ${sets.join(", ")} WHERE id = $${i}`,
+      values,
+    );
+  }
+  return selectSlots(getPool());
 }
 
 export async function deleteSlotById(id) {
-  await ensureSchema()
-  await getPool().query(`DELETE FROM slots WHERE id = $1`, [id])
-  return selectSlots(getPool())
+  await ensureSchema();
+  await getPool().query(`DELETE FROM slots WHERE id = $1`, [id]);
+  return selectSlots(getPool());
 }
 
 export async function addDue(due) {
-  await ensureSchema()
+  await ensureSchema();
   await getPool().query(
     `INSERT INTO dues (id, name, count, comment) VALUES ($1,$2,$3,$4)`,
-    [due.id, due.name, due.count || 0, due.comment || '']
-  )
-  return selectDues(getPool())
+    [due.id, due.name, due.count || 0, due.comment || ""],
+  );
+  return selectDues(getPool());
 }
 
 export async function updateDueById(id, updates) {
-  await ensureSchema()
-  const sets = []
-  const values = []
-  let i = 1
-  if (updates.name !== undefined) { sets.push(`name = $${i++}`); values.push(updates.name) }
-  if (updates.count !== undefined) { sets.push(`count = $${i++}`); values.push(updates.count) }
-  if (updates.comment !== undefined) { sets.push(`comment = $${i++}`); values.push(updates.comment) }
-  if (sets.length) {
-    values.push(id)
-    await getPool().query(`UPDATE dues SET ${sets.join(', ')} WHERE id = $${i}`, values)
+  await ensureSchema();
+  const sets = [];
+  const values = [];
+  let i = 1;
+  if (updates.name !== undefined) {
+    sets.push(`name = $${i++}`);
+    values.push(updates.name);
   }
-  return selectDues(getPool())
+  if (updates.count !== undefined) {
+    sets.push(`count = $${i++}`);
+    values.push(updates.count);
+  }
+  if (updates.comment !== undefined) {
+    sets.push(`comment = $${i++}`);
+    values.push(updates.comment);
+  }
+  if (sets.length) {
+    values.push(id);
+    await getPool().query(
+      `UPDATE dues SET ${sets.join(", ")} WHERE id = $${i}`,
+      values,
+    );
+  }
+  return selectDues(getPool());
 }
 
 export async function deleteDueById(id) {
-  await ensureSchema()
-  await getPool().query(`DELETE FROM dues WHERE id = $1`, [id])
-  return selectDues(getPool())
+  await ensureSchema();
+  await getPool().query(`DELETE FROM dues WHERE id = $1`, [id]);
+  return selectDues(getPool());
 }
 
 export async function snapshotState(state) {
-  await ensureSchema()
+  await ensureSchema();
   await getPool().query(
     `INSERT INTO app_snapshots (snapshot_date, state) VALUES (CURRENT_DATE, $1::jsonb)
      ON CONFLICT (snapshot_date) DO NOTHING`,
-    [JSON.stringify(state)]
-  )
+    [JSON.stringify(state)],
+  );
   await getPool().query(`
     DELETE FROM app_snapshots
     WHERE snapshot_date NOT IN (
       SELECT snapshot_date FROM app_snapshots ORDER BY snapshot_date DESC LIMIT 3
     )
-  `)
+  `);
 }
 
 export async function listSnapshots() {
-  await ensureSchema()
+  await ensureSchema();
   const { rows } = await getPool().query(
-    `SELECT snapshot_date::text AS ts, state FROM app_snapshots ORDER BY snapshot_date DESC LIMIT 3`
-  )
-  return rows
+    `SELECT snapshot_date::text AS ts, state FROM app_snapshots ORDER BY snapshot_date DESC LIMIT 3`,
+  );
+  return rows;
 }
 
 export async function getSnapshot(date) {
-  await ensureSchema()
+  await ensureSchema();
   const { rows } = await getPool().query(
-    `SELECT state FROM app_snapshots WHERE snapshot_date = $1::date`, [date]
-  )
-  return rows[0]?.state
+    `SELECT state FROM app_snapshots WHERE snapshot_date = $1::date`,
+    [date],
+  );
+  return rows[0]?.state;
 }
 
 export async function closePool() {
-  if (pool) await pool.end()
-  pool = undefined
-  schemaReady = undefined
+  if (pool) await pool.end();
+  pool = undefined;
+  schemaReady = undefined;
 }
