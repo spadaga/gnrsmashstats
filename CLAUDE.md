@@ -748,24 +748,17 @@ overrides this base rule as before; only the previously-undefined light-mode def
   their Neon metadata URLs are updated and visually verified.
 - Scores: 0–30, no deuce logic.
 - `isSuperAdmin` (Suresh Padaga) computed once in `App.jsx`: `adminName === SUPER_ADMIN_NAME`. Keyed on
-  name, not PIN — see Admin auth above for why. As of the write-access lockdown, this is effectively the
-  only role with write access:
-  - `VersionsModal` / History button (passed to `Header` as `canViewHistory`) — desktop nav + mobile menu.
-  - Edit/delete matches in `MatchList` (`canModify = isSuperAdmin`), add/edit/delete players (`Players.jsx`),
-    add/edit/delete slots (`Slots.jsx`), manage videos/photos (`VideoSection`/`PhotoGallery`), Import/Export
-    (`FilterBar`) — all gated on `isSuperAdmin`, not plain `isAdmin`.
-  - Two exceptions: any regular admin can log a **new** match for **any past date** (`MatchForm`'s date
-    field has no admin-tier restriction, capped only at `max=today`), and any regular admin can
-    add/edit/delete **Party Dues** entries (Report page, `canModify = isAdmin`).
-  - This is enforced client-side only (see the auth limitation above) — a regular admin could still hit
-    the API routes directly to bypass these UI gates, same caveat as the rest of the auth model.
+  name, not PIN — see Admin auth above for why.
+  - Video Editors: `Srinivas Padaga`, `Sanjeev Kumar`, `Abdhulla`/`Abdullah` (can log matches, add/update YouTube video URLs).
+  - Match Loggers: `Narendra`/`Narender`, `HR`/`Pradeep Raghav` (can log matches).
+  - Super Admin (`Suresh Padaga`): full administrative write access across everything.
+- **Player Deactivation (No Delete)**: Players cannot be deleted from the system (preserving match history integrity). Instead, admins can deactivate/reactivate players. Deactivated players (`inactive: true`) remain in the database, appear at the bottom of all player pickers and dropdowns with an `(Inactive)` label, but cannot be selected for new or edited matches. In the Players page, deactivated players appear at the bottom with an `Inactive` badge and a Reactivate action.
 - Snapshots are taken **once per day** (pre-mutation), labeled Today / Yesterday / Day Before Yesterday.
 - `matches[].loggedAt` ISO timestamp added on creation — `MatchList` sorts newest-first within each day,
   falling back to original array position (later = more recent) for legacy matches without `loggedAt`.
 - `computePairStats(matches)` in ranking.js computes wins/losses per 2-player pair combination.
 - `TopSeeds` shows top 2 pairs (not individuals), with "View All →" modal for all combinations.
-- `PUT /api/players/:name` edits player name/pin/photo/role in Neon and cascades
-  name changes into all stored matches.
+- `PUT /api/players/:name` edits player name/pin/photo/role/inactive in Neon.
 - **"Abandoned" is a heuristic, not a stored flag**: any match where the winning score is under 21 is
   treated as abandoned (`isAbandoned` in ranking.js). There's no separate "was this actually cut short"
   field — a genuinely low-scoring-but-complete alternate scoring format would also get flagged, but the

@@ -63,17 +63,34 @@ function groupByDate(matches) {
     }));
 }
 
-function PlayerSelect({ value, onChange, options, placeholder }) {
+function PlayerSelect({ value, onChange, options, placeholder, players = [] }) {
+  const inactives = new Set(
+    players
+      .filter((p) => typeof p === "object" && p.inactive)
+      .map((p) => p.name.toLowerCase()),
+  );
+  const activeOpts = options.filter(
+    (p) => !inactives.has(String(p).toLowerCase()),
+  );
+  const inactiveOpts = options.filter((p) =>
+    inactives.has(String(p).toLowerCase()),
+  );
+
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="flex-1 min-w-0 border dark:border-slate-600 rounded-lg px-2 py-1 text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:border-orange-400 focus:outline-none"
+      className="flex-1 min-w-0 border dark:border-slate-600 rounded-lg px-2 py-1 text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:border-orange-400 focus:outline-none cursor-pointer"
     >
       {placeholder && <option value="">{placeholder}</option>}
-      {options.map((p) => (
+      {activeOpts.map((p) => (
         <option key={p} value={p}>
           {p}
+        </option>
+      ))}
+      {inactiveOpts.map((p) => (
+        <option key={p} value={p}>
+          {p} (Inactive)
         </option>
       ))}
     </select>
@@ -375,11 +392,35 @@ export default function MatchList({
               title="Filter by player"
             >
               <option value="">All Players</option>
-              {playerNames.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
+              {playerNames
+                .filter(
+                  (p) =>
+                    !players.some(
+                      (pl) =>
+                        typeof pl === "object" &&
+                        pl.inactive &&
+                        pl.name.toLowerCase() === p.toLowerCase(),
+                    ),
+                )
+                .map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              {playerNames
+                .filter((p) =>
+                  players.some(
+                    (pl) =>
+                      typeof pl === "object" &&
+                      pl.inactive &&
+                      pl.name.toLowerCase() === p.toLowerCase(),
+                  ),
+                )
+                .map((p) => (
+                  <option key={p} value={p}>
+                    {p} (Inactive)
+                  </option>
+                ))}
             </select>
             {(from || to || selectedPlayer) && (
               <button
@@ -404,6 +445,7 @@ export default function MatchList({
             onChange={(v) => setH2h([v, hb, hc, hd])}
             options={h2hOptions(ha)}
             placeholder="Player 1"
+            players={players}
           />
           <span className="text-slate-400 text-xs">&</span>
           <PlayerSelect
@@ -411,6 +453,7 @@ export default function MatchList({
             onChange={(v) => setH2h([ha, v, hc, hd])}
             options={h2hOptions(hb)}
             placeholder="Player 2"
+            players={players}
           />
           <span className="text-slate-300 dark:text-slate-600 text-xs mx-1">
             vs
@@ -420,6 +463,7 @@ export default function MatchList({
             onChange={(v) => setH2h([ha, hb, v, hd])}
             options={h2hOptions(hc)}
             placeholder="Player 3"
+            players={players}
           />
           <span className="text-slate-400 text-xs">&</span>
           <PlayerSelect
@@ -427,6 +471,7 @@ export default function MatchList({
             onChange={(v) => setH2h([ha, hb, hc, v])}
             options={h2hOptions(hd)}
             placeholder="Player 4"
+            players={players}
           />
           {h2hChosen.length > 0 && (
             <button

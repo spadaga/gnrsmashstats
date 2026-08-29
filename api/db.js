@@ -31,8 +31,10 @@ export function ensureSchema() {
       pin text,
       photo text,
       role text,
+      inactive boolean NOT NULL DEFAULT false,
       deleted_at timestamptz
     )`)
+    await db.query(`ALTER TABLE players ADD COLUMN IF NOT EXISTS inactive boolean NOT NULL DEFAULT false`)
     await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS players_active_name_idx
       ON players (name) WHERE deleted_at IS NULL`)
     await db.query(`CREATE TABLE IF NOT EXISTS matches (
@@ -92,13 +94,14 @@ function toDateStr(value) {
 
 async function selectPlayers(client) {
   const { rows } = await client.query(
-    `SELECT name, pin, photo, role FROM players WHERE deleted_at IS NULL ORDER BY id`
+    `SELECT name, pin, photo, role, inactive FROM players WHERE deleted_at IS NULL ORDER BY id`
   )
   return rows.map((r) => {
     const p = { name: r.name }
     if (r.pin) p.pin = r.pin
     if (r.photo) p.photo = r.photo
     if (r.role) p.role = r.role
+    if (r.inactive) p.inactive = true
     return p
   })
 }
@@ -180,8 +183,8 @@ export async function writeState(state) {
     const playerIdByName = new Map()
     for (const p of state.players || []) {
       const { rows } = await client.query(
-        `INSERT INTO players (name, pin, photo, role) VALUES ($1,$2,$3,$4) RETURNING id`,
-        [p.name, p.pin || null, p.photo || null, p.role || null]
+        `INSERT INTO players (name, pin, photo, role, inactive) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+        [p.name, p.pin || null, p.photo || null, p.role || null, Boolean(p.inactive)]
       )
       playerIdByName.set(p.name, rows[0].id)
     }
@@ -244,8 +247,15 @@ export async function addPlayer({ name, pin, photo }) {
 export async function updatePlayerByName(oldName, updated) {
   await ensureSchema()
   await getPool().query(
-    `UPDATE players SET name=$1, pin=$2, photo=$3, role=$4 WHERE name=$5 AND deleted_at IS NULL`,
-    [updated.name, updated.pin || null, updated.photo || null, updated.role || null, oldName]
+    `UPDATE players SET name=$1, pin=$2, photo=$3, role=$4, inactive=$5 WHERE name=$6 AND deleted_at IS NULL`,
+    [
+      updated.name,
+      updated.pin || null,
+      updated.photo || null,
+      updated.role || null,
+      Boolean(updated.inactive),
+      oldName,
+    ]
   )
   return selectPlayers(getPool())
 }

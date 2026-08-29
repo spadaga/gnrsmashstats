@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { useEffect, useRef, useState, useMemo } from 'react'
+import { ChevronDown, Ban } from 'lucide-react'
 import Avatar from './Avatar'
 
-// Avatar-aware, type-to-filter replacement for a native <select> of player
-// names — a plain <select><option> can't render an inline <img>, so this is a
-// small custom combobox instead. Typed text only ever *filters* `options`;
-// `onChange` is called exclusively from clicking/selecting an actual option
-// (or pressing Enter when exactly one match remains), so free-typed text can
-// never become the picked value — an unmatched query just shows "No matching
-// players." and leaves the previous selection (or none) in place.
-export default function PlayerPicker({ value, onChange, options, photoByName = {}, placeholder = 'Select player' }) {
+export default function PlayerPicker({
+  value,
+  onChange,
+  options = [],
+  players = [],
+  inactivePlayers = [],
+  photoByName = {},
+  placeholder = 'Select player',
+}) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const ref = useRef(null)
@@ -17,42 +18,112 @@ export default function PlayerPicker({ value, onChange, options, photoByName = {
   useEffect(() => {
     if (!open) return
     function onClickOutside(e) {
-      if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQuery('') }
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false)
+        setQuery('')
+      }
     }
     document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [open])
 
+  // Build a set of inactive player names from players / inactivePlayers / options
+  const inactiveSet = useMemo(() => {
+    const set = new Set(
+      (Array.isArray(inactivePlayers) ? inactivePlayers : []).map((n) =>
+        String(n).trim().toLowerCase()
+      )
+    )
+    players.forEach((p) => {
+      if (typeof p === 'object' && p.inactive && p.name) {
+        set.add(p.name.trim().toLowerCase())
+      }
+    })
+    options.forEach((p) => {
+      if (typeof p === 'object' && p.inactive && p.name) {
+        set.add(p.name.trim().toLowerCase())
+      }
+    });
+    return set;
+  }, [players, inactivePlayers, options]);
+
+  // Normalize options to list of string names, ordered with active players first and inactive at the bottom
+  const sortedOptions = useMemo(() => {
+    const rawNames = options.map((p) => (typeof p === "string" ? p : p.name));
+    const active = rawNames.filter(
+      (n) => !inactiveSet.has(String(n).trim().toLowerCase()),
+    );
+    const inactive = rawNames.filter((n) =>
+      inactiveSet.has(String(n).trim().toLowerCase()),
+    );
+    return [...active, ...inactive];
+  }, [options, inactiveSet]);
+
+  const isInactive = (name) => {
+    if (!name) return false;
+    return inactiveSet.has(String(name).trim().toLowerCase());
+  };
+
   function select(v) {
-    onChange(v)
-    setOpen(false)
-    setQuery('')
+    if (isInactive(v)) return; // Cannot select inactive player
+    onChange(v);
+    setOpen(false);
+    setQuery("");
   }
 
-  const q = query.trim().toLowerCase()
-  const filtered = q ? options.filter((p) => p.toLowerCase().includes(q)) : options
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? sortedOptions.filter((p) => p.toLowerCase().includes(q))
+    : sortedOptions
+
+  const firstSelectable = filtered.find((p) => !isInactive(p))
+  const valueIsInactive = isInactive(value)
 
   return (
     <div className="relative" ref={ref}>
       {open ? (
         <div className="w-full flex items-center gap-2 border border-orange-400 rounded-lg px-3 py-2 bg-white dark:bg-slate-700 ring-2 ring-orange-400">
           <input
-            autoFocus type="text" value={query} onChange={(e) => setQuery(e.target.value)}
+            autoFocus
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') { setOpen(false); setQuery('') }
-              if (e.key === 'Enter') { e.preventDefault(); if (filtered.length === 1) select(filtered[0]) }
+              if (e.key === 'Escape') {
+                setOpen(false)
+                setQuery('')
+              }
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                if (filtered.length === 1 && !isInactive(filtered[0])) {
+                  select(filtered[0])
+                } else if (firstSelectable && filtered.length > 0) {
+                  select(firstSelectable)
+                }
+              }
             }}
             placeholder={value || placeholder}
-            className="flex-1 min-w-0 bg-transparent text-sm text-slate-800 dark:text-slate-100 focus:outline-none placeholder:text-slate-400" />
+            className="flex-1 min-w-0 bg-transparent text-sm text-slate-800 dark:text-slate-100 focus:outline-none placeholder:text-slate-400"
+          />
           <ChevronDown size={14} className="text-slate-400 shrink-0" />
         </div>
       ) : (
-        <button type="button" onClick={() => setOpen(true)}
-          className="w-full flex items-center gap-2 border dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-400 text-left">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="w-full flex items-center gap-2 border dark:border-slate-600 rounded-lg px-3 py-2 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-400 text-left"
+        >
           {value ? (
             <>
               <Avatar name={value} photo={photoByName[value]} size="sm" />
-              <span className="flex-1 truncate text-sm">{value}</span>
+              <span className="flex-1 truncate text-sm flex items-center gap-1.5">
+                <span>{value}</span>
+                {valueIsInactive && (
+                  <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-1.5 py-0.2 rounded-md">
+                    Inactive
+                  </span>
+                )}
+              </span>
             </>
           ) : (
             <span className="flex-1 text-sm text-slate-400">{placeholder}</span>
@@ -62,16 +133,50 @@ export default function PlayerPicker({ value, onChange, options, photoByName = {
       )}
       {open && (
         <div className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg shadow-lg py-1">
-          {filtered.length === 0 && <p className="px-3 py-2 text-sm text-slate-400">No matching players.</p>}
-          {filtered.map((p) => (
-            <button key={p} type="button" onClick={() => select(p)}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-orange-50 dark:hover:bg-orange-900/20 transition ${p === value ? 'bg-orange-50 dark:bg-orange-900/10' : ''}`}>
-              <Avatar name={p} photo={photoByName[p]} size="sm" />
-              <span className="text-sm text-slate-800 dark:text-slate-100">{p}</span>
-            </button>
-          ))}
+          {filtered.length === 0 && (
+            <p className="px-3 py-2 text-sm text-slate-400">No matching players.</p>
+          )}
+          {filtered.map((p) => {
+            const inactive = isInactive(p)
+            const isSelected = p === value
+            return (
+              <button
+                key={p}
+                type="button"
+                disabled={inactive}
+                onClick={() => select(p)}
+                title={inactive ? `${p} is deactivated and cannot be selected` : undefined}
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-left transition ${
+                  inactive
+                    ? 'opacity-40 cursor-not-allowed bg-slate-50/50 dark:bg-slate-800/50 text-slate-400'
+                    : isSelected
+                    ? 'bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/30'
+                    : 'hover:bg-orange-50 dark:hover:bg-orange-900/10'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <Avatar name={p} photo={photoByName[p]} size="sm" />
+                  <span
+                    className={`text-sm truncate ${
+                      inactive
+                        ? 'text-slate-400 dark:text-slate-500 line-through'
+                        : 'text-slate-800 dark:text-slate-100 font-medium'
+                    }`}
+                  >
+                    {p}
+                  </span>
+                </div>
+                {inactive && (
+                  <span className="text-[10px] font-bold uppercase tracking-wide bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-full shrink-0 flex items-center gap-1">
+                    <Ban size={9} /> Inactive
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
   )
 }
+

@@ -65,6 +65,25 @@ export function Bar({ label, value, max, color = "bg-orange-600" }) {
   );
 }
 
+function renderPlayerOptions(playerList) {
+  const norm = (p) => (typeof p === "string" ? { name: p } : p);
+  const normalized = (playerList || []).map(norm);
+  const active = normalized.filter((p) => !p.inactive);
+  const inactive = normalized.filter((p) => p.inactive);
+  return [
+    ...active.map((p) => (
+      <option key={p.name} value={p.name}>
+        {p.name}
+      </option>
+    )),
+    ...inactive.map((p) => (
+      <option key={p.name} value={p.name}>
+        {p.name} (Inactive)
+      </option>
+    )),
+  ];
+}
+
 export function PeriodTabs({
   period,
   onPeriod,
@@ -219,11 +238,12 @@ function MatchResultsPanel({ title, matches }) {
 }
 
 function DuoSection({ matches, players }) {
-  const [a, setA] = useState(players[0] || "");
-  const [b, setB] = useState(players[1] || "");
+  const pName = (p) => (typeof p === "string" ? p : p.name);
+  const [a, setA] = useState(players[0] ? pName(players[0]) : "");
+  const [b, setB] = useState(players[1] ? pName(players[1]) : "");
   const [selected, setSelected] = useState(null);
-  const aOptions = players.filter((p) => p !== b);
-  const bOptions = players.filter((p) => p !== a);
+  const aOptions = players.filter((p) => pName(p) !== b);
+  const bOptions = players.filter((p) => pName(p) !== a);
   const ready = a && b && a !== b;
   const s = ready ? computeDuoStats(matches, a, b) : null;
   const h2h = ready ? computeHeadToHead(matches, a, b) : null;
@@ -275,11 +295,7 @@ function DuoSection({ matches, players }) {
           onChange={(e) => selectPlayer(setA, e.target.value)}
           className={selectCls}
         >
-          {aOptions.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
+          {renderPlayerOptions(aOptions)}
         </select>
         <span className="text-slate-400 text-xs">&</span>
         <select
@@ -287,11 +303,7 @@ function DuoSection({ matches, players }) {
           onChange={(e) => selectPlayer(setB, e.target.value)}
           className={selectCls}
         >
-          {bOptions.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
+          {renderPlayerOptions(bOptions)}
         </select>
       </div>
       {!ready ? (
@@ -383,7 +395,8 @@ function DuoSection({ matches, players }) {
 }
 
 function CombosSection({ matches, players }) {
-  const [p, setP] = useState(players[0] || "");
+  const pName = (p) => (typeof p === "string" ? p : p.name);
+  const [p, setP] = useState(players[0] ? pName(players[0]) : "");
   const [selected, setSelected] = useState(null);
   const pairs = computePairStats(matches).filter((x) => x.players.includes(p));
   const partnerOf = (pair) => pair.players.find((n) => n !== p);
@@ -424,11 +437,7 @@ function CombosSection({ matches, players }) {
         onChange={(e) => selectPlayer(e.target.value)}
         className={`${selectCls} mb-4`}
       >
-        {players.map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
+        {renderPlayerOptions(players)}
       </select>
       {pairs.length === 0 ? (
         <p className="text-slate-400 text-sm">No matches for {p} yet.</p>
@@ -757,7 +766,15 @@ function PartyDueSection({
       count: Number(form.count) || 0,
       comment: form.comment.trim(),
     });
-    setForm({ name: players[0] || "", count: "", comment: "" });
+    setForm({
+      name: players[0]
+        ? typeof players[0] === "string"
+          ? players[0]
+          : players[0].name
+        : "",
+      count: "",
+      comment: "",
+    });
   }
 
   return (
@@ -769,11 +786,7 @@ function PartyDueSection({
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             className={selectCls}
           >
-            {players.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
+            {renderPlayerOptions(players)}
           </select>
           <input
             type="number"

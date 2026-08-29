@@ -142,14 +142,14 @@ export function WilsonInfoModal({ open, onClose, defaultTab = "ranking" }) {
                     <li>
                       Filters matches played on <strong>today only</strong>.
                     </li>
+                    <li>Requires 3 matches to qualify.</li>
                     <li>
-                      Requires 3 matches to qualify.
+                      <strong>Regular players ranked first</strong> (on
+                      Mon–Sat), followed by guest/other players by Wilson score.
                     </li>
                     <li>
-                      <strong>Regular players ranked first</strong> (on Mon–Sat), followed by guest/other players by Wilson score.
-                    </li>
-                    <li>
-                      <strong>Top Seeds:</strong> Top 2 singles & top 2 doubles from today's games.
+                      <strong>Top Seeds:</strong> Top 2 singles & top 2 doubles
+                      from today's games.
                     </li>
                   </ul>
                 </div>
@@ -158,7 +158,8 @@ export function WilsonInfoModal({ open, onClose, defaultTab = "ranking" }) {
                 <div className="bg-slate-50 dark:bg-slate-700/40 p-3 rounded-xl border dark:border-slate-700 space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <Calendar size={13} className="text-orange-500" /> Sunday Tab
+                      <Calendar size={13} className="text-orange-500" /> Sunday
+                      Tab
                     </span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300">
                       Min 3 Matches
@@ -169,13 +170,16 @@ export function WilsonInfoModal({ open, onClose, defaultTab = "ranking" }) {
                       Considers <strong>all historical Sunday matches</strong>.
                     </li>
                     <li>
-                      Players with ≥ 3 Sunday matches qualify for official ranking.
+                      Players with ≥ 3 Sunday matches qualify for official
+                      ranking.
                     </li>
                     <li>
-                      Open to all players (regular & non-regular) ranked strictly by Wilson score.
+                      Open to all players (regular & non-regular) ranked
+                      strictly by Wilson score.
                     </li>
                     <li>
-                      <strong>Top Seeds:</strong> All-time Sunday singles & doubles leaders.
+                      <strong>Top Seeds:</strong> All-time Sunday singles &
+                      doubles leaders.
                     </li>
                   </ul>
                 </div>
@@ -184,7 +188,8 @@ export function WilsonInfoModal({ open, onClose, defaultTab = "ranking" }) {
                 <div className="bg-slate-50 dark:bg-slate-700/40 p-3 rounded-xl border dark:border-slate-700 space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <Medal size={13} className="text-orange-500" /> Weekly Tab & Week Ribbon
+                      <Medal size={13} className="text-orange-500" /> Weekly Tab
+                      & Week Ribbon
                     </span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
                       2-Tier Smart Ribbon
@@ -192,13 +197,17 @@ export function WilsonInfoModal({ open, onClose, defaultTab = "ranking" }) {
                   </div>
                   <ul className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1 list-disc pl-4">
                     <li>
-                      <strong>All Week:</strong> Aggregates week matches (min 10 matches, regular players ranked first).
+                      <strong>All Week:</strong> Aggregates week matches (min 10
+                      matches, regular players ranked first).
                     </li>
                     <li>
-                      <strong>Day Breakdown (Sun–Sat):</strong> Tap any day to see that day's rankings (min 3 matches, regular players ranked first on Mon–Sat).
+                      <strong>Day Breakdown (Sun–Sat):</strong> Tap any day to
+                      see that day's rankings (min 3 matches, regular players
+                      ranked first on Mon–Sat).
                     </li>
                     <li>
-                      <strong>Top Seeds:</strong> Shows leading performers for the selected day or entire week.
+                      <strong>Top Seeds:</strong> Shows leading performers for
+                      the selected day or entire week.
                     </li>
                   </ul>
                 </div>
@@ -310,25 +319,6 @@ export function WilsonInfoModal({ open, onClose, defaultTab = "ranking" }) {
                   </p>
                 </div>
 
-                {/* Score & Video Editor */}
-                <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center gap-1">
-                        <ShieldCheck size={11} /> Score & Video Editor
-                      </span>
-                      <span className="font-bold text-slate-900 dark:text-white text-xs">
-                        Srinivas Padaga
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                    <strong>Score & Video Rights:</strong> Authorized to modify
-                    match scores and add/edit YouTube match video URLs. Cannot
-                    delete matches or change system roles.
-                  </p>
-                </div>
-
                 {/* Video Editor */}
                 <div className="p-3 rounded-xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50">
                   <div className="flex items-center justify-between mb-1.5">
@@ -337,7 +327,7 @@ export function WilsonInfoModal({ open, onClose, defaultTab = "ranking" }) {
                         <Video size={11} /> Video Editor
                       </span>
                       <span className="font-bold text-slate-900 dark:text-white text-xs">
-                        Sanjeev Kumar, Abdhulla
+                        Srinivas Padaga, Sanjeev Kumar, Abdhulla
                       </span>
                     </div>
                   </div>

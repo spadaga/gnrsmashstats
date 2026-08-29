@@ -1,10 +1,12 @@
 import { useState } from "react";
 import {
+  Ban,
   Camera,
   Pencil,
   Save,
   ShieldCheck,
-  Trash2,
+  UserCheck,
+  UserMinus,
   UserPlus,
   X,
 } from "lucide-react";
@@ -167,6 +169,21 @@ export default function Players({ players, actions, isAdmin, onViewProfile }) {
     actions.updatePlayer(oldName, updates);
   }
 
+  // Active players first, deactivated players at the bottom
+  const sortedPlayers = [...players].sort((a, b) => {
+    const aInactive = typeof a === "object" && Boolean(a.inactive);
+    const bInactive = typeof b === "object" && Boolean(b.inactive);
+    if (aInactive !== bInactive) return aInactive ? 1 : -1;
+    const aName = typeof a === "string" ? a : a.name;
+    const bName = typeof b === "string" ? b : b.name;
+    return aName.localeCompare(bName);
+  });
+
+  const activeCount = players.filter(
+    (p) => typeof p === "string" || !p.inactive,
+  ).length;
+  const inactiveCount = players.length - activeCount;
+
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       {isAdmin && (
@@ -186,20 +203,32 @@ export default function Players({ players, actions, isAdmin, onViewProfile }) {
         </form>
       )}
       <div className="bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700 p-4">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300 mb-3">
-          Players ({players.length})
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300">
+            Players ({players.length})
+          </h2>
+          {inactiveCount > 0 && (
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              {activeCount} active · {inactiveCount} inactive
+            </span>
+          )}
+        </div>
         <div className="space-y-1">
-          {players.map((p) => {
+          {sortedPlayers.map((p) => {
             const playerName = typeof p === "string" ? p : p.name;
             const playerPhoto = typeof p === "object" ? p.photo : undefined;
             const isSuperAdminPlayer = isSuperAdmin(playerName);
+            const isPlayerInactive = typeof p === "object" && Boolean(p.inactive);
             const role = getPlayerRole(p);
             const isEditing = editingName === playerName;
             return (
               <div
                 key={playerName}
-                className="px-2 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
+                className={`px-2 py-2 rounded-lg transition ${
+                  isPlayerInactive
+                    ? "bg-slate-50/60 dark:bg-slate-800/40 opacity-75 hover:opacity-100"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-700"
+                }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -217,11 +246,19 @@ export default function Players({ players, actions, isAdmin, onViewProfile }) {
                     <button
                       type="button"
                       onClick={() => onViewProfile?.(playerName)}
-                      className="text-sm font-medium text-slate-800 dark:text-slate-100 hover:text-orange-600 dark:hover:text-orange-400 hover:underline transition"
+                      className={`text-sm font-medium hover:text-orange-600 dark:hover:text-orange-400 hover:underline transition ${
+                        isPlayerInactive
+                          ? "text-slate-500 dark:text-slate-400 line-through"
+                          : "text-slate-800 dark:text-slate-100"
+                      }`}
                     >
                       {playerName}
                     </button>
-                    {isSuperAdminPlayer || role === "admin" ? (
+                    {isPlayerInactive ? (
+                      <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 px-1.5 py-0.5 rounded-full">
+                        <Ban size={10} /> Inactive
+                      </span>
+                    ) : isSuperAdminPlayer || role === "admin" ? (
                       <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 px-1.5 py-0.5 rounded-full">
                         <ShieldCheck size={10} /> Admin
                       </span>
@@ -276,13 +313,35 @@ export default function Players({ players, actions, isAdmin, onViewProfile }) {
                         >
                           <Pencil size={13} />
                         </button>
-                        <button
-                          onClick={() => setConfirm(playerName)}
-                          className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
-                          title="Delete player"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        {!isSuperAdminPlayer && (
+                          isPlayerInactive ? (
+                            <button
+                              onClick={() =>
+                                setConfirm({
+                                  name: playerName,
+                                  type: "reactivate",
+                                })
+                              }
+                              className="p-1.5 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition"
+                              title="Reactivate player"
+                            >
+                              <UserCheck size={13} />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() =>
+                                setConfirm({
+                                  name: playerName,
+                                  type: "deactivate",
+                                })
+                              }
+                              className="p-1.5 text-slate-300 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition"
+                              title="Deactivate player"
+                            >
+                              <UserMinus size={13} />
+                            </button>
+                          )
+                        )}
                       </div>
                     )}
                   </div>
@@ -301,11 +360,25 @@ export default function Players({ players, actions, isAdmin, onViewProfile }) {
       </div>
       <ConfirmDialog
         open={!!confirm}
-        title="Remove player?"
-        message={`"${confirm}" will be removed from the player list.`}
-        confirmLabel="Remove"
+        title={
+          confirm?.type === "reactivate"
+            ? "Reactivate player?"
+            : "Deactivate player?"
+        }
+        message={
+          confirm?.type === "reactivate"
+            ? `"${confirm?.name}" will be reactivated and can be selected for matches again.`
+            : `"${confirm?.name}" will be marked inactive. They will remain visible at the bottom of dropdowns but cannot be selected for new matches.`
+        }
+        confirmLabel={
+          confirm?.type === "reactivate" ? "Reactivate" : "Deactivate"
+        }
         onConfirm={() => {
-          actions.deletePlayer(confirm);
+          if (confirm?.name) {
+            actions.updatePlayer(confirm.name, {
+              inactive: confirm.type === "deactivate",
+            });
+          }
           setConfirm(null);
         }}
         onCancel={() => setConfirm(null)}

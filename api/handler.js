@@ -161,7 +161,7 @@ export default async function handler(req, res) {
         return res.status(200).json(await deletePlayerByName(param))
       }
       if (req.method === 'PUT') {
-        const { name: newName, pin, photo, role } = req.body || {}
+        const { name: newName, pin, photo, role, inactive } = req.body || {}
         const idx = state.players.findIndex((p) => p.name === param)
         if (idx === -1) return res.status(404).json({ error: 'Player not found' })
         await snapshotState(state)
@@ -177,6 +177,8 @@ export default async function handler(req, res) {
         // single fixed super admin (Suresh Padaga, see SUPER_ADMIN_NAME in admins.js).
         if (role !== undefined) { if (role) updated.role = role }
         else if (existing.role) updated.role = existing.role
+        if (inactive !== undefined) { updated.inactive = Boolean(inactive) }
+        else if (existing.inactive) { updated.inactive = existing.inactive }
         // Matches reference players by id, not name, so a rename is a single-row
         // update here — no cascade into match history needed anymore.
         return res.status(200).json(await updatePlayerByName(param, updated))

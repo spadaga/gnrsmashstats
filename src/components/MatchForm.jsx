@@ -45,11 +45,13 @@ export default function MatchForm({
   const selected = [form.p1, form.p2, form.p3, form.p4];
 
   function availableFor(slot) {
-    return players.filter(
-      (p) =>
-        !selected.includes(p) ||
-        selected.indexOf(p) === ["p1", "p2", "p3", "p4"].indexOf(slot),
-    );
+    return players.filter((p) => {
+      const name = typeof p === "string" ? p : p.name;
+      return (
+        !selected.includes(name) ||
+        selected.indexOf(name) === ["p1", "p2", "p3", "p4"].indexOf(slot)
+      );
+    });
   }
 
   async function handleSubmit(e) {
@@ -67,6 +69,16 @@ export default function MatchForm({
     // All 4 must be unique
     const unique = new Set(names);
     if (unique.size < 4) return setError("All four players must be different.");
+
+    // Inactive player validation
+    const inactivePicked = players.find(
+      (p) => typeof p === "object" && p.inactive && names.includes(p.name),
+    );
+    if (inactivePicked) {
+      return setError(
+        `"${inactivePicked.name}" is deactivated and cannot play in matches.`,
+      );
+    }
 
     const s1 = Number(score1),
       s2 = Number(score2);
@@ -171,6 +183,7 @@ export default function MatchForm({
             value={form.p1}
             onChange={(v) => set("p1", v)}
             options={availableFor("p1")}
+            players={players}
             photoByName={photoByName}
             placeholder="Player 1"
           />
@@ -178,6 +191,7 @@ export default function MatchForm({
             value={form.p2}
             onChange={(v) => set("p2", v)}
             options={availableFor("p2")}
+            players={players}
             photoByName={photoByName}
             placeholder="Player 2"
           />
@@ -201,6 +215,7 @@ export default function MatchForm({
             value={form.p3}
             onChange={(v) => set("p3", v)}
             options={availableFor("p3")}
+            players={players}
             photoByName={photoByName}
             placeholder="Player 3"
           />
@@ -208,6 +223,7 @@ export default function MatchForm({
             value={form.p4}
             onChange={(v) => set("p4", v)}
             options={availableFor("p4")}
+            players={players}
             photoByName={photoByName}
             placeholder="Player 4"
           />

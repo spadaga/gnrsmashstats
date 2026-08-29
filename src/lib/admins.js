@@ -12,13 +12,23 @@ export function isSuperAdmin(adminName) {
 }
 
 // Players who have rights to modify scores & add/update video URLs
-export const SCORE_ADMIN_NAMES = ["Srinivas Padaga"];
+export const SCORE_ADMIN_NAMES = [];
 
 // Players who have rights to add/update match video URLs (for current & past matches)
-export const VIDEO_ADMIN_NAMES = ["Sanjeev Kumar", "Abdhulla", "Abdullah"];
+export const VIDEO_ADMIN_NAMES = [
+  "Srinivas Padaga",
+  "Sanjeev Kumar",
+  "Abdhulla",
+  "Abdullah",
+];
 
 // Players who have rights to log matches only
-export const MATCH_LOGGER_NAMES = ["Narendra", "Narender", "HR", "Pradeep Raghav"];
+export const MATCH_LOGGER_NAMES = [
+  "Narendra",
+  "Narender",
+  "HR",
+  "Pradeep Raghav",
+];
 
 export const ROLES = [
   { key: "admin", label: "Admin", description: "Full administrative access" },
@@ -117,6 +127,31 @@ export function findAdminByPin(players, pin) {
   return players.find((p) => p.pin && p.pin === pin);
 }
 
+export function isPlayerInactive(player) {
+  if (!player) return false;
+  return typeof player === "object" ? Boolean(player.inactive) : false;
+}
+
+export function inactiveMap(players) {
+  return Object.fromEntries(
+    players
+      .filter((p) => typeof p === "object" && p.inactive)
+      .map((p) => [p.name, true]),
+  );
+}
+
+export function activePlayerNames(players) {
+  return players
+    .filter((p) => typeof p === "string" || !p.inactive)
+    .map((p) => (typeof p === "string" ? p : p.name));
+}
+
+export function inactivePlayerNames(players) {
+  return players
+    .filter((p) => typeof p === "object" && p.inactive)
+    .map((p) => p.name);
+}
+
 export function playerNames(players) {
   return players.map((p) => (typeof p === "string" ? p : p.name));
 }
@@ -128,3 +163,4 @@ export function photoMap(players) {
       .map((p) => [p.name, p.photo]),
   );
 }
+
