@@ -42,11 +42,6 @@ export default function Dashboard({
         players={data.players}
         photoByName={photoByName}
       />
-      <PlayerActivity
-        matches={data.matches}
-        photoByName={photoByName}
-        onViewProfile={onViewProfile}
-      />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <MatchList
           matches={data.matches}
@@ -67,6 +62,11 @@ export default function Dashboard({
           onViewProfile={onViewProfile}
         />
       </div>
+      <PlayerActivity
+        matches={data.matches}
+        photoByName={photoByName}
+        onViewProfile={onViewProfile}
+      />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <VideoSection
           videos={data.videos}

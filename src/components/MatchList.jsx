@@ -14,7 +14,6 @@ import {
   isAbandoned,
   sortPlayersByTier,
 } from "../lib/ranking";
-import { localISODate } from "../lib/date";
 import MatchEditModal from "./MatchEditModal";
 import YoutubeIcon from "./YoutubeIcon";
 
