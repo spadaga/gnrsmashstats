@@ -152,14 +152,18 @@ function StatTile({
     <Tag
       type={onClick ? "button" : undefined}
       onClick={onClick}
-      className={`text-center rounded-xl py-3 px-2 transition w-full ${
+      className={`text-center rounded-xl py-3 px-1.5 sm:px-2 transition w-full min-w-0 flex flex-col items-center justify-center ${
         active
           ? "bg-orange-100 dark:bg-orange-900/30 ring-2 ring-orange-400"
           : "bg-slate-50 dark:bg-slate-700/50"
       } ${onClick ? "cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/20" : ""}`}
     >
-      <p className={`text-2xl font-extrabold ${color}`}>{value}</p>
-      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+      <div
+        className={`text-sm xs:text-base sm:text-xl md:text-2xl font-extrabold ${color} whitespace-nowrap flex items-center justify-center leading-tight`}
+      >
+        {value}
+      </div>
+      <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 mt-1 whitespace-nowrap truncate max-w-full">
         {label}
       </p>
     </Tag>
@@ -458,7 +462,17 @@ function CombosSection({ matches, players }) {
               active={selected === "total"}
             />
             <StatTile
-              value={`${overall.wins}W – ${overall.losses}L`}
+              value={
+                <span className="whitespace-nowrap inline-flex items-center justify-center gap-0.5 sm:gap-1">
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    {overall.wins}W
+                  </span>
+                  <span className="text-slate-400 font-normal">–</span>
+                  <span className="text-red-500 dark:text-red-400">
+                    {overall.losses}L
+                  </span>
+                </span>
+              }
               label="Overall record"
               onClick={(e) => pick("total", e)}
               active={selected === "total"}

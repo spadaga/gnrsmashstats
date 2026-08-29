@@ -92,10 +92,14 @@ function StatTile({ value, label, color = "text-orange-600", onClick }) {
     <Tag
       type={onClick ? "button" : undefined}
       onClick={onClick}
-      className={`text-center rounded-xl py-3 px-2 bg-slate-50 dark:bg-slate-700/50 w-full ${onClick ? "cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/20 transition" : ""}`}
+      className={`text-center rounded-xl py-3 px-1.5 sm:px-2 bg-slate-50 dark:bg-slate-700/50 w-full min-w-0 flex flex-col items-center justify-center ${onClick ? "cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/20 transition" : ""}`}
     >
-      <p className={`text-2xl font-extrabold ${color}`}>{value}</p>
-      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+      <div
+        className={`text-sm xs:text-base sm:text-xl md:text-2xl font-extrabold ${color} whitespace-nowrap flex items-center justify-center leading-tight`}
+      >
+        {value}
+      </div>
+      <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 mt-1 whitespace-nowrap truncate max-w-full">
         {label}
       </p>
     </Tag>
@@ -346,11 +350,11 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
               />
               <StatTile
                 value={
-                  <span>
+                  <span className="whitespace-nowrap inline-flex items-center justify-center gap-0.5 sm:gap-1">
                     <span className="text-emerald-600 dark:text-emerald-400">
                       {overallWith.wins}W
-                    </span>{" "}
-                    <span className="text-slate-400 font-normal">–</span>{" "}
+                    </span>
+                    <span className="text-slate-400 font-normal">–</span>
                     <span className="text-red-500 dark:text-red-400">
                       {overallWith.losses}L
                     </span>
@@ -456,11 +460,11 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
             />
             <StatTile
               value={
-                <span>
+                <span className="whitespace-nowrap inline-flex items-center justify-center gap-0.5 sm:gap-1">
                   <span className="text-emerald-600 dark:text-emerald-400">
                     {overallVersus.wins}W
-                  </span>{" "}
-                  <span className="text-slate-400 font-normal">–</span>{" "}
+                  </span>
+                  <span className="text-slate-400 font-normal">–</span>
                   <span className="text-red-500 dark:text-red-400">
                     {overallVersus.losses}L
                   </span>
