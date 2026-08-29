@@ -143,12 +143,13 @@ export function WilsonInfoModal({ open, onClose, defaultTab = "ranking" }) {
                       Filters matches played on <strong>today only</strong>.
                     </li>
                     <li>
-                      Players with ≥ 3 matches qualify for official ranking.
+                      Requires 3 matches to qualify.
                     </li>
-                    <li>Ranked strictly by Wilson score interval.</li>
                     <li>
-                      <strong>Top Seeds:</strong> Top 2 singles & top 2 doubles
-                      from today's games.
+                      <strong>Regular players ranked first</strong> (on Mon–Sat), followed by guest/other players by Wilson score.
+                    </li>
+                    <li>
+                      <strong>Top Seeds:</strong> Top 2 singles & top 2 doubles from today's games.
                     </li>
                   </ul>
                 </div>
@@ -157,8 +158,7 @@ export function WilsonInfoModal({ open, onClose, defaultTab = "ranking" }) {
                 <div className="bg-slate-50 dark:bg-slate-700/40 p-3 rounded-xl border dark:border-slate-700 space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <Calendar size={13} className="text-orange-500" /> Sunday
-                      Tab
+                      <Calendar size={13} className="text-orange-500" /> Sunday Tab
                     </span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300">
                       Min 3 Matches
@@ -169,13 +169,13 @@ export function WilsonInfoModal({ open, onClose, defaultTab = "ranking" }) {
                       Considers <strong>all historical Sunday matches</strong>.
                     </li>
                     <li>
-                      Players with ≥ 3 Sunday matches qualify for official
-                      ranking.
+                      Players with ≥ 3 Sunday matches qualify for official ranking.
                     </li>
-                    <li>Ranked by Wilson score across all Sunday battles.</li>
                     <li>
-                      <strong>Top Seeds:</strong> All-time Sunday singles &
-                      doubles leaders.
+                      Open to all players (regular & non-regular) ranked strictly by Wilson score.
+                    </li>
+                    <li>
+                      <strong>Top Seeds:</strong> All-time Sunday singles & doubles leaders.
                     </li>
                   </ul>
                 </div>
@@ -184,8 +184,7 @@ export function WilsonInfoModal({ open, onClose, defaultTab = "ranking" }) {
                 <div className="bg-slate-50 dark:bg-slate-700/40 p-3 rounded-xl border dark:border-slate-700 space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <Medal size={13} className="text-orange-500" /> Weekly Tab
-                      & Week Ribbon
+                      <Medal size={13} className="text-orange-500" /> Weekly Tab & Week Ribbon
                     </span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
                       2-Tier Smart Ribbon
@@ -193,17 +192,13 @@ export function WilsonInfoModal({ open, onClose, defaultTab = "ranking" }) {
                   </div>
                   <ul className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1 list-disc pl-4">
                     <li>
-                      <strong>All Week (Entire Week):</strong> Aggregates week
-                      matches (min 10 matches, regular players ranked first).
+                      <strong>All Week:</strong> Aggregates week matches (min 10 matches, regular players ranked first).
                     </li>
                     <li>
-                      <strong>Day Breakdown (Sun–Sat):</strong> Tap any
-                      individual day in the Ribbon to see matches and rankings
-                      for that exact day (min 3 matches, Wilson score).
+                      <strong>Day Breakdown (Sun–Sat):</strong> Tap any day to see that day's rankings (min 3 matches, regular players ranked first on Mon–Sat).
                     </li>
                     <li>
-                      <strong>Top Seeds:</strong> Shows week champions or top
-                      performers for the selected day.
+                      <strong>Top Seeds:</strong> Shows leading performers for the selected day or entire week.
                     </li>
                   </ul>
                 </div>

@@ -25,18 +25,22 @@ export function isRegularPlayer(name) {
 }
 
 // Period-specific ranking configuration:
-// - Today: min 3 matches (within that day only), ranked by Wilson score.
-// - Sunday: min 3 matches (across all Sunday matches), ranked by Wilson score.
-// - Week (specific day selected): min 3 matches (within that day only), ranked by Wilson score.
-// - Week (all) / Month / Year / Overall: min 10 matches, regular players ranked first.
+// - Sunday (or Week ribbon on Sunday): anyone who played is ranked by Wilson score without prioritizing regular players.
+// - All other tabs (Today on Mon-Sat, Weekday tabs Mon-Sat, Weekly All, Monthly, Yearly, Overall):
+//   Regular players ALWAYS come first (sorted among themselves by Wilson score), followed by other players.
 export function getRankingConfig(period, weekDay = "all") {
-  if (period === "today" || period === "sunday") {
+  const isSunday =
+    period === "sunday" ||
+    (period === "week" && weekDay === "sun") ||
+    (period === "today" && new Date().getDay() === 0);
+
+  if (isSunday) {
     return { minMatches: 3, prioritizeRegular: false };
   }
-  if (period === "week" && weekDay && weekDay !== "all") {
-    return { minMatches: 3, prioritizeRegular: false };
-  }
-  return { minMatches: 10, prioritizeRegular: true };
+
+  const isDaily =
+    period === "today" || (period === "week" && weekDay !== "all");
+  return { minMatches: isDaily ? 3 : 10, prioritizeRegular: true };
 }
 
 export function filterByWeekDay(matches, dateStr) {

@@ -778,11 +778,13 @@ overrides this base rule as before; only the previously-undefined light-mode def
   TopSeeds, Report's Individual/Pair Rankings) but still appears normally in raw match lists/history
   (`MatchList`, `MatchesModal`) — only the ranking computation filters them out, nothing hides the matches
 - **Ranking & 2-Tier Week Ribbon**:
-  - `Today`: minimum 3 matches, ranked by Wilson score interval.
-  - `Sunday`: minimum 3 matches across all historical Sunday matches, ranked by Wilson score.
+  - **Regular Players Always First (Except Sunday)**: On `Today` (Mon–Sat), all weekday ribbon tabs (`Mon`, `Tue`, `Wed`, `Thu`, `Fri`, `Sat`), `Weekly All`, `Monthly`, `Yearly`, and `Overall`, regular players are prioritized first and ranked among themselves by Wilson score. Other players come after all regular players.
+  - `Today`: minimum 3 matches, regular players ranked first (unless Today is Sunday).
+  - `Sunday`: minimum 3 matches across all historical Sunday matches, open to all players ranked strictly by Wilson score.
   - `Weekly` (with 2-Tier Smart Week Ribbon):
-    - **All Week**: minimum 10 matches (Mon–Sat regular play), regular players prioritized first by Wilson score.
-    - **Day Breakdown (Sun, Mon, Tue, Wed, Thu, Fri, Sat)**: minimum 3 matches on that day, ranked by Wilson score.
+    - **All Week**: minimum 10 matches (Mon–Sat regular play), regular players prioritized first.
+    - **Day Breakdown (Mon–Sat)**: minimum 3 matches on that day, regular players prioritized first.
+    - **Sunday Breakdown (`Sun`)**: minimum 3 matches, open to all players.
   - `Monthly`, `Yearly`, `Overall`: minimum 10 matches (Mon–Sat regular play), regular players prioritized first.
   - Regular players list: `Suresh Padaga`, `Srinivas Padaga`, `Sanjeev Kumar`, `Abdhulla`/`Abdhullah`/`Nayeem Abdhullah`, `HR`/`Pradeep Raghav`, `Narender`/`Narendra`, `Manikyam`.
 - **Live sync is polling, not push**: `App.jsx` re-fetches `/api/state` every 10s so other open devices
