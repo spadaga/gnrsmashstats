@@ -30,7 +30,7 @@ import {
   formatYoutubeUrl,
 } from "../lib/ranking";
 import Info from "../components/Info";
-import { Bar, PeriodTabs } from "./Report";
+import { PeriodTabs } from "./Report";
 
 const RANK_PERIODS = [
   { key: "today", label: "Day", shortLabel: "Day" },
@@ -215,13 +215,54 @@ function MatchRow({ m, name }) {
   );
 }
 
+function WinLossBar({ label, wins = 0, losses = 0, played = 0, max = 1 }) {
+  const total = played || wins + losses;
+  const totalPct = max > 0 && total > 0 ? Math.max(3, (total / max) * 100) : 0;
+  const winShare = total > 0 ? (wins / total) * 100 : 0;
+  const lossShare = total > 0 ? (losses / total) * 100 : 0;
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-28 sm:w-36 shrink-0 text-xs text-slate-600 dark:text-slate-300 truncate font-medium">
+        {label}
+      </span>
+      <div className="flex-1 h-4 bg-slate-100 dark:bg-slate-700/60 rounded-full overflow-hidden flex">
+        <div
+          className="h-full flex overflow-hidden rounded-full transition-all duration-300"
+          style={{ width: `${totalPct}%` }}
+        >
+          {wins > 0 && (
+            <div
+              className="h-full bg-emerald-500 hover:bg-emerald-600 transition"
+              style={{ width: `${winShare}%` }}
+              title={`${wins} Won`}
+            />
+          )}
+          {losses > 0 && (
+            <div
+              className="h-full bg-red-500 hover:bg-red-600 transition"
+              style={{ width: `${lossShare}%` }}
+              title={`${losses} Lost`}
+            />
+          )}
+        </div>
+      </div>
+      <span className="w-8 text-right text-xs font-bold text-red-500 dark:text-red-400">
+        {total}
+      </span>
+    </div>
+  );
+}
+
 function PlayerCombosCard({ matches, playerName, onDrilldown }) {
   const [tab, setTab] = useState("with"); // "with" | "versus"
 
-  // Partner Combos ("With")
-  const pairs = computePairStats(matches).filter((x) =>
-    x.players.includes(playerName),
-  );
+  // Partner Combos ("With") sorted descending by played matches
+  const pairs = computePairStats(matches)
+    .filter((x) => x.players.includes(playerName))
+    .sort(
+      (a, b) => b.played - a.played || b.wins - a.wins || a.losses - b.losses,
+    );
   const partnerOf = (pair) => pair.players.find((n) => n !== playerName);
   const overallWith = pairs.reduce(
     (acc, x) => ({
@@ -233,8 +274,10 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
   );
   const maxWith = Math.max(1, ...pairs.map((x) => x.played));
 
-  // Opponent Matchups ("Versus")
-  const versusList = computeVersusStats(matches, playerName);
+  // Opponent Matchups ("Versus") sorted descending by played matches
+  const versusList = computeVersusStats(matches, playerName).sort(
+    (a, b) => b.played - a.played || b.wins - a.wins || a.losses - b.losses,
+  );
   const overallVersus = versusList.reduce(
     (acc, x) => ({
       played: acc.played + x.played,
@@ -293,6 +336,7 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
               <StatTile
                 value={overallWith.played}
                 label="Total matches"
+                color="text-red-500 dark:text-red-400"
                 onClick={() =>
                   onDrilldown({
                     title: `${playerName} — all matches`,
@@ -301,7 +345,17 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
                 }
               />
               <StatTile
-                value={`${overallWith.wins}W – ${overallWith.losses}L`}
+                value={
+                  <span>
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      {overallWith.wins}W
+                    </span>{" "}
+                    <span className="text-slate-400 font-normal">–</span>{" "}
+                    <span className="text-red-500 dark:text-red-400">
+                      {overallWith.losses}L
+                    </span>
+                  </span>
+                }
                 label="Overall record"
                 onClick={() =>
                   onDrilldown({
@@ -311,12 +365,29 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
                 }
               />
             </div>
+
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                Partner Distribution (Descending)
+              </span>
+              <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" /> Won
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-red-500" /> Lost
+                </span>
+              </div>
+            </div>
+
             <div className="space-y-2 mb-5">
               {pairs.map((x) => (
-                <Bar
+                <WinLossBar
                   key={x.players.join("|")}
                   label={`w/ ${partnerOf(x)}`}
-                  value={x.played}
+                  wins={x.wins}
+                  losses={x.losses}
+                  played={x.played}
                   max={maxWith}
                 />
               ))}
@@ -340,7 +411,10 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
                       w/ {partner}
                     </span>
                     <span className="text-slate-500 dark:text-slate-400">
-                      {x.played} played ·{" "}
+                      <span className="text-red-500 dark:text-red-400 font-bold">
+                        {x.played}
+                      </span>{" "}
+                      played ·{" "}
                       <span className="text-emerald-600 dark:text-emerald-400 font-bold">
                         {x.wins}W
                       </span>{" "}
@@ -372,6 +446,7 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
             <StatTile
               value={overallVersus.played}
               label="Total matchups"
+              color="text-red-500 dark:text-red-400"
               onClick={() =>
                 onDrilldown({
                   title: `${playerName} — all matches`,
@@ -380,7 +455,17 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
               }
             />
             <StatTile
-              value={`${overallVersus.wins}W – ${overallVersus.losses}L`}
+              value={
+                <span>
+                  <span className="text-emerald-600 dark:text-emerald-400">
+                    {overallVersus.wins}W
+                  </span>{" "}
+                  <span className="text-slate-400 font-normal">–</span>{" "}
+                  <span className="text-red-500 dark:text-red-400">
+                    {overallVersus.losses}L
+                  </span>
+                </span>
+              }
               label="Overall vs record"
               onClick={() =>
                 onDrilldown({
@@ -390,12 +475,29 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
               }
             />
           </div>
+
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              Opponent Matchups (Descending)
+            </span>
+            <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" /> Won
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-red-500" /> Lost
+              </span>
+            </div>
+          </div>
+
           <div className="space-y-2 mb-5">
             {versusList.map((x) => (
-              <Bar
+              <WinLossBar
                 key={x.opponent}
                 label={`vs ${x.opponent}`}
-                value={x.played}
+                wins={x.wins}
+                losses={x.losses}
+                played={x.played}
                 max={maxVersus}
               />
             ))}
@@ -417,7 +519,10 @@ function PlayerCombosCard({ matches, playerName, onDrilldown }) {
                   vs {x.opponent}
                 </span>
                 <span className="text-slate-500 dark:text-slate-400">
-                  {x.played} played ·{" "}
+                  <span className="text-red-500 dark:text-red-400 font-bold">
+                    {x.played}
+                  </span>{" "}
+                  played ·{" "}
                   <span className="text-emerald-600 dark:text-emerald-400 font-bold">
                     {x.wins}W
                   </span>{" "}
