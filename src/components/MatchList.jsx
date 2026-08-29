@@ -9,8 +9,11 @@ import {
   Trash2,
 } from "lucide-react";
 import ConfirmDialog from "./ConfirmDialog";
-import { formatYoutubeUrl, isAbandoned, sortPlayersByTier } from "../lib/ranking";
-import { localISODate } from "../lib/date";
+import {
+  formatYoutubeUrl,
+  isAbandoned,
+  sortPlayersByTier,
+} from "../lib/ranking";
 import MatchEditModal from "./MatchEditModal";
 import YoutubeIcon from "./YoutubeIcon";
 
